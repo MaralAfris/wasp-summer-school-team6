@@ -1,6 +1,6 @@
-# WASP Autonomous systems challenge
+# WASP summer school 2016
 
-# LTH, Team 2
+# Team 6
 
 Tutorials:
 http://www.cas.kth.se/wasp/summerschool2016/
