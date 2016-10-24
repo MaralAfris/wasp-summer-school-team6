@@ -1,23 +1,121 @@
 import sys,re,rospy;
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
+import actionlib
+from actionlib_msgs.msg import *
+from geometry_msgs.msg import Pose, Point, Quaternion
 
-Plan = sys.stdin;
-actions = [];
+class GoToPose():
+    def __init__(self):
 
-for line in Plan:
-    actions.append(line);
+        self.goal_sent = False
 
-waypoints = {'a': [10,20], 'b': [0, 15], 'c': [-10, 10]};
+	# What to do if shut down (e.g. Ctrl-C or failure)
+	rospy.on_shutdown(self.shutdown)
 
-actions = actions[3:len(actions)-1];
+	# Tell the action client that we want to spin a thread by default
+	self.move_base = actionlib.SimpleActionClient("move_base", MoveBaseAction)
+	rospy.loginfo("Wait for the action server to come up")
 
-planre = re.compile('[0-9]+\.[0-9]+: \(([a-z ]+)\) \[[0-9]+\]');
-for a in actions:
-    m = planre.match(a);
-    action = m.group(1);
-    parts = action.split(" ");
-    type = parts[0];
-    if type == 'move':
-       bot = parts[1];
-       #action_from = parts[2];
-       action_to = parts[3];
-       print bot,action_to
+	# Allow up to 5 seconds for the action server to come up
+	self.move_base.wait_for_server(rospy.Duration(5))
+
+    def goto(self, pos, quat):
+
+        # Send a goal
+        self.goal_sent = True
+	goal = MoveBaseGoal()
+	goal.target_pose.header.frame_id = 'map'
+	goal.target_pose.header.stamp = rospy.Time.now()
+        goal.target_pose.pose = Pose(Point(pos['x'], pos['y'], 0.000),
+                                     Quaternion(quat['r1'], quat['r2'], quat['r3'], quat['r4']))
+
+	# Start moving
+        self.move_base.send_goal(goal)
+
+	# Allow TurtleBot up to 60 seconds to complete task
+	success = self.move_base.wait_for_result(rospy.Duration(60))
+
+        state = self.move_base.get_state()
+        result = False
+
+        if success and state == GoalStatus.SUCCEEDED:
+            # We made it!
+            result = True
+        else:
+            self.move_base.cancel_goal()
+
+        self.goal_sent = False
+        return result
+
+    def shutdown(self):
+        if self.goal_sent:
+            self.move_base.cancel_goal()
+        rospy.loginfo("Stop")
+        rospy.sleep(1)
+
+# a function that moves the turtlebot to a x,y location
+def moveToAcoordinate(coorX,coorY):
+    try:
+        rospy.init_node('nav_test', anonymous=False)
+        navigator = GoToPose()
+
+        # Customize the following values so they are appropriate for your location
+        position = {'x': coorX, 'y' : coorY}
+        quaternion = {'r1' : 0.000, 'r2' : 0.000, 'r3' : 0.000, 'r4' : 1.000}
+
+        rospy.loginfo("Go to (%s, %s) pose", position['x'], position['y'])
+        success = navigator.goto(position, quaternion)
+
+        if success:
+            rospy.loginfo("Hooray, reached the desired pose")
+            
+        else:
+            rospy.loginfo("The base failed to reach the desired pose")
+
+        # Sleep to give the last log messages time to be sent
+        rospy.sleep(1)
+
+    except rospy.ROSInterruptException:
+        rospy.loginfo("Ctrl-C caught. Quitting")
+
+
+
+def start():
+    #parsing of the input plan file
+    Plan = sys.stdin;
+    actions = [];
+
+    for line in Plan:
+        actions.append(line);
+
+    waypoints = {'a': [-1.39,0.424], 'b': [1.63, -1.34], 'c': [-2.51, 1.2]};
+
+    actions = actions[3:len(actions)-1];
+
+    planre = re.compile('[0-9]+\.[0-9]+: \(([a-z ]+)\) \[[0-9]+\]');
+    for a in actions:
+        m = planre.match(a);
+        action = m.group(1);
+        parts = action.split(" ");
+        type = parts[0];
+        if type == 'move':
+           bot = parts[1];
+           #action_from = parts[2];
+           action_to = parts[3];
+
+           #map and send new locations
+           print bot,waypoints[action_to]
+           #Update the list of goals by appending the Currently received point.
+           if bot == "turtlebot":
+               print "yes!!!!"
+               print waypoints[action_to][0]
+
+               # wait untill moveToAccordinate returns
+               moveToAcoordinate(waypoints[action_to][0],waypoints[action_to][1])
+
+
+    #rostopic pub /move_base_simple/goal geometry_msgs/PoseStamped '{header:{stamp:now, frame_id:"map"}, pose:{position: {x: 1.63, y: -1.34, z:0.0}, orientation: {w: 1.0}}}'
+
+
+if __name__ == '__main__':
+    start()
