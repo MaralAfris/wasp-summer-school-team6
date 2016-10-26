@@ -92,7 +92,7 @@ def start():
 
     actions = actions[3:len(actions)-1];
 
-    planre = re.compile('[0-9]+\.[0-9]+: \(([a-z ]+)\) \[[0-9]+\]');
+    planre = re.compile('[0-9.]+: \(([a-z0-9- ]+)\) \[[0-9]+\]');
     for a in actions:
         m = planre.match(a);
         action = m.group(1);
