@@ -106,7 +106,7 @@ def start():
            #map and send new locations
            print bot,waypoints[action_to]
            #Update the list of goals by appending the Currently received point.
-           if bot == "turtlebot":
+           if bot == "turtlebot1":
                print "yes!!!!"
                print waypoints[action_to][0]
 
