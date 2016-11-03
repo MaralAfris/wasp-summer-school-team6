@@ -23,11 +23,17 @@ if __name__ == "__main__":
     if out != 0 and out != 104:
         raise Exception("Planner failed")
 
-
-    plan = '_plan'
-
-    graph = construct_graph(plan, world)
+    graph = construct_graph(PLAN, world)
     graph.print_deps()
 
     os.unlink(PROBLEM)
     os.unlink(PLAN)
+
+    world.generate_problem('before')
+
+    # Execute some actions for funsies
+    for action in graph.edges:
+        action.complete_action()
+
+    world.generate_problem('after')
+

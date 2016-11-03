@@ -103,7 +103,7 @@ class PickUp(Action):
         self.box = world.box(args[1])
 
     def complete_action(self):
-        self.agent.carrying = self.box
+        self.agent.carrying = self.box.name
         self.box.location = None
         self.box.free = False
 
