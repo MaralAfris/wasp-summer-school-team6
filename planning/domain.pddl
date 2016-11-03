@@ -27,12 +27,11 @@
   (empty ?agent - agent)
   (carrying ?agent - agent ?box - box))
 
-;move-durations will be different for turtlebot/drone, hence the agent parameter
-(:functions (move-duration ?agent - agent ?from ?to - waypoint) - number)
+(:functions (move-duration ?from ?to - waypoint) - number)
 
 (:durative-action move
   :parameters (?agent - agent ?from ?to - waypoint)
-  :duration (= ?duration (move-duration ?agent ?from ?to))
+  :duration (= ?duration (move-duration ?from ?to))
   :condition (and (over all (empty ?to))
                   (at start (at ?agent ?from)))
   :effect (and (at end (not (at ?agent ?from)))

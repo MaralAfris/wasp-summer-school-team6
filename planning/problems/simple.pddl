@@ -10,19 +10,19 @@
 
 (:init 
 
-  (= (move-duration drone1 w2 x2) 6)
-  (= (move-duration drone1 x2 w2) 6)
-  (= (move-duration drone1 x2 y2) 8)
-  (= (move-duration drone1 y2 x2) 8)
-  (= (move-duration drone1 y2 w2) 10)
-  (= (move-duration drone1 w2 y2) 10)
+  (= (move-duration w2 x2) 6)
+  (= (move-duration x2 w2) 6)
+  (= (move-duration x2 y2) 8)
+  (= (move-duration y2 x2) 8)
+  (= (move-duration y2 w2) 10)
+  (= (move-duration w2 y2) 10)
 
-  (= (move-duration turtlebot1 w x) 3)
-  (= (move-duration turtlebot1 x w) 3)
-  (= (move-duration turtlebot1 x y) 4)
-  (= (move-duration turtlebot1 y x) 4)
-  (= (move-duration turtlebot1 y w) 5)
-  (= (move-duration turtlebot1 w y) 5)
+  (= (move-duration w x) 3)
+  (= (move-duration x w) 3)
+  (= (move-duration x y) 4)
+  (= (move-duration y x) 4)
+  (= (move-duration y w) 5)
+  (= (move-duration w y) 5)
 
   (over w2 w)
   (over x2 x)
