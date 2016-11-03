@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from scipy.spatial import Delaunay
+import numpy as np
 import sys
 
 TURTLE_SPEED = 0.5 
@@ -38,6 +40,30 @@ class World:
 
         obj = cls(agents, waypoints, boxes, persons)
         return obj
+
+    def agent(self, name):
+        for agent in self.agents:
+            if agent.name == name:
+                return agent
+        raise Exception('unknown agent ' + name)
+
+    def waypoint(self, name):
+        for waypoint in self.waypoints:
+            if waypoint.name == name or waypoint.name + '_air' == name:
+                return waypoint 
+        raise Exception('unknown waypoint ' + name)
+
+    def box(self, name):
+        for box in self.boxes:
+            if box.name == name:
+                return box 
+        raise Exception('unknown box ' + name)
+
+    def person(self, name):
+        for person in self.persons:
+            if person.name == name:
+                return person 
+        raise Exception('unknown person ' + name)
 
     def generate_problem(self, problem_file):
         import math
@@ -127,11 +153,11 @@ class World:
             if person.handled == False:
                 f.write('            (handled ' + person.name + ')\n')
         f.write(')))\n')
+
+        f.close()
         
 
     def create_triangulation(self):
-        from scipy.spatial import Delaunay
-        import numpy as np
         array = [];
         for waypoint in self.waypoints:
             array.append([waypoint.x, waypoint.y])
