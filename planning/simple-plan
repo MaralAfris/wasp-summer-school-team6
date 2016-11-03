@@ -1,0 +1,10 @@
+; Time 0.008
+; Length 6
+; Makespan 17
+0.00: (move drone1 x2 w2) [6]
+6.01: (pick-up drone1 box1 w2 w) [1]
+7.02: (move turtlebot1 x w) [3]
+10.03: (hand-over drone1 turtlebot1 box1 w2 w) [1]
+11.04: (move turtlebot1 w y) [5]
+16.05: (deliver turtlebot1 box1 y person1) [1]
+; END OF PLAN
