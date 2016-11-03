@@ -74,6 +74,7 @@
   :parameters (?drone - drone ?box - box ?air - airwaypoint ?ground - waypoint ?person - person)
   :duration (= ?duration 1)
   :condition (and (at start (over ?air ?ground))
+                  (over all (empty ?ground))
                   (at start (carrying ?drone ?box))
                   (over all (at ?drone ?air))
                   (at start (at ?person ?ground)))
