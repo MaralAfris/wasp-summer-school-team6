@@ -5,22 +5,41 @@ from world import World, Box, Agent, Person, Waypoint
 
 def construct_graph(plan_file, world):
     actions = []
+    ix = 1
     with open(plan_file, 'r') as f:
         for line in f:
             action = from_plan(line, world)
             if action is not None:
                 actions.append(action)
+                action.index = ix
+                ix += 1
+
     actions.reverse()
+
     root = Root(world)
+    root.index = 0
+
     for action in actions:
-        for dep in root.edges:
-            if action.depends(dep):
-                root.remove_edge(dep)
-                action.add_edge(dep)
-        root.add_edge(action)
+        add_deps(root, root, action)
+        root.add_succ(action)
+    root.succ.reverse()
 
-    return root
+    actions.reverse()
+    for action in actions:
+        action.succ.sort(key=lambda action: action.index)
+        for succ in action.succ:
+            succ.add_pre(action)
+        action.pre.sort(key=lambda action: action.index)
 
+    return (root, actions)
+
+def add_deps(root, root_child, new_node):
+    for su in list(root_child.succ):
+        if su.overlaps(new_node):
+            root.remove_succ(su)
+            new_node.add_succ(su)
+        else:
+            add_deps(root, su, new_node)
 
 def from_plan(line, world):
     planre = re.compile('[0-9.]+: \(([_a-z0-9- ]+)\) \[[0-9]+\]')
@@ -45,34 +64,40 @@ class Action(object):
     def __init__(self, args, world):
         self.symbols = set(args)
         self.args = args
-        self.edges = []
+        self.succ = []
+        self.pre = []
 
-    def add_edge(self, action):
-        self.edges.append(action)
+    def add_succ(self, action):
+        if action not in self.succ:
+            self.succ.append(action)
 
-    def remove_edge(self, action):
-        self.edges.remove(action)
+    def add_pre(self, action):
+        if action not in self.pre:
+            self.pre.append(action)
 
-    def depends(self, other):
-        for s in self.symbols:
-            if other.has_symbol(s):
-                return True
-        return False
+    def remove_succ(self, action):
+        if action in self.succ:
+            self.succ.remove(action)
+
+    def overlaps(self, other):
+        return not self.symbols.isdisjoint(other.symbols) 
 
     def has_symbol(self, s):
         return s in self.symbols
 
     def format(self):
-        return self.__class__.__name__ + ' ' + ', '.join(self.args)
+        deps = []
+        for e in self.pre:
+            deps.append(str(e.index))
 
-    def print_deps(self):
-        print(self.format())
-        for a in self.edges:
-            a.print_deps()
+        return str(self.index) + ' [' + ', '.join(deps) + '] ' + self.__class__.__name__ + ' ' + ', '.join(self.args)
 
 class Root(Action):
     def __init__(self, world):
         super(Root, self).__init__([], world)
+
+    def overlaps(self, other):
+        return True
 
 class Move(Action):
     def __init__(self, args, world):
@@ -93,7 +118,7 @@ class Deliver(Action):
     def complete_action(self):
         self.agent.carrying = None
         self.box.free = False
-        self.box.location = agent.location
+        self.box.location = self.agent.location
         self.person.handled = True
 
 class PickUp(Action):
@@ -117,11 +142,4 @@ class HandOver(Action):
     def complete_action(self):
         self.turtlebot.carrying = self.drone.carrying
         self.drone.carrying = None
-
-
-if __name__ == "__main__":
-    world = World.from_json(sys.argv[1])
-    world.create_triangulation()
-    graph = construct_graph(sys.argv[2], world)
-    graph.print_deps()
 

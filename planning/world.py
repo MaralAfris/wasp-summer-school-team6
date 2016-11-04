@@ -5,9 +5,9 @@ import numpy as np
 import sys
 
 TURTLE_SPEED = 0.5 
-DRONE_SPEED = 0.1
+DRONE_SPEED = 0.3
 
-class World:
+class World(object):
 
     def __init__(self, agents, waypoints, boxes, persons):
         self.agents = agents
@@ -40,6 +40,21 @@ class World:
 
         obj = cls(agents, waypoints, boxes, persons)
         return obj
+
+    def to_json(self, json_file):
+        import json
+        data = {}
+
+        data['agents'] = _list_as_dict(self.agents)
+        data['waypoints'] = _list_as_dict(self.waypoints)
+        data['boxes'] = _list_as_dict(self.boxes)
+        data['persons'] = _list_as_dict(self.persons)
+
+        j = json.dumps(data, indent=4)
+        f = open(json_file, 'w')
+        print >> f, j
+        f.close()
+
 
     def agent(self, name):
         for agent in self.agents:
@@ -188,15 +203,25 @@ class World:
         plt.axis('equal')
         plt.show()
 
+def _list_as_dict(alist):
+    new_list = []
+    for a in alist:
+        new_list.append(a.dict())
+    return new_list
 
-class Agent:
+
+class JsonSerializable(object):
+    def dict(self):
+        return self.__dict__
+
+class Agent(JsonSerializable):
     def __init__(self, name, agent_type, location, carrying):
         self.name = name
         self.agent_type = agent_type
         self.location = location
         self.carrying = carrying
 
-class Waypoint:
+class Waypoint(JsonSerializable):
     def __init__(self, name, x, y):
         self.name = name
         self.x = x
@@ -206,13 +231,16 @@ class Waypoint:
     def add_connection(self, waypoint):
         self.connections.append(waypoint)
 
-class Box:
+    def dict(self):
+        return {'name': self.name, 'x': self.x, 'y': self.y}
+
+class Box(JsonSerializable):
     def __init__(self, name, location, free):
         self.name = name
         self.location = location
         self.free = free
 
-class Person:
+class Person(JsonSerializable):
     def __init__(self, name, location, handled):
         self.name = name
         self.location = location
