@@ -180,7 +180,7 @@ class World(object):
         
 
     def _create_mesh(self):
-        self._split_triangles()
+        self._split_triangles(set())
         self._create_connections()
         names = set()
         for waypoint in self.waypoints:
@@ -195,17 +195,33 @@ class World(object):
         points = np.array(array)
         return Delaunay(points)
 
-    def _split_triangles(self):
+    def _split_triangles(self, waypoint_names):
         tri = self._triangulate()
         any_split = False
         for triangle in tri.simplices:
             a = self.waypoints[triangle[0]]
             b = self.waypoints[triangle[1]]
             c = self.waypoints[triangle[2]]
-            if self._split_triangle(a, b, c):
+            if self._split_triangle(a, b, c, waypoint_names):
                 any_split = True
         if any_split:
-            self._split_triangles()
+            self._split_triangles(waypoint_names)
+
+    def _split_triangle(self, a, b, c, waypoint_names):
+        x = (a.x + b.x + c.x) / 3
+        y = (a.y + b.y + c.y) / 3
+        print x,y
+        grid = 10 / MIN_TRIANGLE_SPLIT
+        name = VIRTUAL_WAYPOINT_PREFIX + str(int(x*grid)) + '_' + str(int(y*grid))
+        centroid = Waypoint(name, x, y)
+        if (name not in waypoint_names and 
+                a.dist(centroid) > MIN_TRIANGLE_SPLIT and
+                b.dist(centroid) > MIN_TRIANGLE_SPLIT and
+                c.dist(centroid) > MIN_TRIANGLE_SPLIT):
+            self.waypoints.append(centroid)
+            waypoint_names.add(name)
+            return True
+        return False
 
     def _create_connections(self):
         tri = self._triangulate()
@@ -230,23 +246,9 @@ class World(object):
     def _prune(self, a, b, c):
         x = (a.x + b.x) / 2
         y = (a.y + b.y) / 2
-        if Waypoint('', x, y).dist(c) < MIN_TRIANGLE_SPLIT:
+        if Waypoint('', x, y).dist(c) < MIN_TRIANGLE_SPLIT and len(a.connections) > 1 and len(b.connections) > 1:
             a.connections.remove(b)
             b.connections.remove(a)
-
-
-    def _split_triangle(self, a, b, c):
-        x = (a.x + b.x + c.x) / 3
-        y = (a.y + b.y + c.y) / 3
-        grid = 10 / MIN_TRIANGLE_SPLIT
-        name = VIRTUAL_WAYPOINT_PREFIX + str(int(x*grid)) + '_' + str(int(y*grid))
-        centroid = Waypoint(name, x, y)
-        if (a.dist(centroid) > MIN_TRIANGLE_SPLIT and
-                b.dist(centroid) > MIN_TRIANGLE_SPLIT and
-                c.dist(centroid) > MIN_TRIANGLE_SPLIT):
-            self.waypoints.append(centroid)
-            return True
-        return False
 
     def plot(self):
         import matplotlib.pyplot as plt
