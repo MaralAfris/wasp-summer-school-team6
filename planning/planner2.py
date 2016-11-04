@@ -14,10 +14,9 @@ if __name__ == "__main__":
     initial_state_json = sys.argv[1]
 
     world = World.from_json(initial_state_json)
-    world.create_triangulation()
     world.generate_problem(PROBLEM)
 
-    out = subprocess.call('yahsp3 -v 0 -K 0.01,0.01 -t ' + str(MAX_PLAN_TIME) + 
+    out = subprocess.call('yahsp3 -y 1 -v 0 -K 0.01,0.01 -t ' + str(MAX_PLAN_TIME) + 
             ' -o domain.pddl -f ' + PROBLEM + ' -H ' + PLAN, shell = True)
 
     # timer interruption is 104
@@ -28,12 +27,9 @@ if __name__ == "__main__":
     for a in actions:
         print(a.format())
 
-    for action in graph.succ:
-        print(action.index)
-    #graph.print_deps()
-
     #os.unlink(PROBLEM)
     #os.unlink(PLAN)
+
 
     world.to_json('_before.json')
 
@@ -42,4 +38,5 @@ if __name__ == "__main__":
         action.complete_action()
 
     world.to_json('_after.json')
+    world.plot()
 

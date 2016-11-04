@@ -42,7 +42,7 @@ def add_deps(root, root_child, new_node):
             add_deps(root, su, new_node)
 
 def from_plan(line, world):
-    planre = re.compile('[0-9.]+: \(([_a-z0-9- ]+)\) \[[0-9]+\]')
+    planre = re.compile('[0-9.]+: \(([_a-z0-9- ]+)\) \[[0-9.]+\]')
     m = planre.match(line)
     if m is not None:
         group = m.group(1)

@@ -4,21 +4,26 @@ from scipy.spatial import Delaunay
 import numpy as np
 import sys
 
-TURTLE_SPEED = 0.5 
-DRONE_SPEED = 0.3
+TURTLE_SPEED = 1 
+DRONE_SPEED = 1
+
+MIN_TRIANGLE_SPLIT = 1
+VIRTUAL_WAYPOINT_PREFIX = 'vt_'
+MAX_MESH_SIZE = 500
 
 class World(object):
-
+    
     def __init__(self, agents, waypoints, boxes, persons):
         self.agents = agents
         self.waypoints = waypoints
         self.boxes = boxes
         self.persons = persons
+        self._create_mesh()
 
     @classmethod
     def from_json(cls, json_file):
         import json
-        with open(json_file) as data_file:    
+        with open(json_file) as data_file:
             data = json.load(data_file)
 
         agents = []
@@ -31,6 +36,9 @@ class World(object):
 
         for waypoint in data["waypoints"]:
             waypoints.append(Waypoint(waypoint["name"], waypoint["x"], waypoint["y"]))
+
+        # waypoints must be sorted to make virtual waypoints consistently generated
+        waypoints.sort(key=lambda waypoint: waypoint.name)
 
         for box in data["boxes"]:
             boxes.append(Box(box["name"], box["location"], box["free"]))
@@ -81,7 +89,6 @@ class World(object):
         raise Exception('unknown person ' + name)
 
     def generate_problem(self, problem_file):
-        import math
         f = open(problem_file, 'w')
         f.write('(define (problem emergency-template)\n')
         f.write('(:domain emergency)\n')
@@ -118,9 +125,9 @@ class World(object):
 
         for waypoint in self.waypoints:
             for connection in waypoint.connections:
-                dist = math.sqrt((waypoint.x - connection.x)**2 + (waypoint.y - connection.y)**2)
-                tdist = int(math.ceil(dist / TURTLE_SPEED))
-                ddist = int(math.ceil(dist / DRONE_SPEED))
+                dist = waypoint.dist(connection)
+                tdist = dist / TURTLE_SPEED
+                ddist = dist / DRONE_SPEED
                 f.write('  (= (move-duration ' + waypoint.name + ' ' + connection.name + ') ' + str(tdist) + ')\n')
                 f.write('  (= (move-duration ' + waypoint.name + '_air ' + connection.name + '_air) ' + str(ddist) + ')\n')
             f.write('\n')
@@ -172,31 +179,84 @@ class World(object):
         f.close()
         
 
-    def create_triangulation(self):
+    def _create_mesh(self):
+        self._split_triangles()
+        self._create_connections()
+        names = set()
+        for waypoint in self.waypoints:
+            if waypoint.name in names:
+                raise Exception('duplicate name ' + waypoint.name)
+            names.add(waypoint.name)
+
+    def _triangulate(self):
         array = [];
         for waypoint in self.waypoints:
             array.append([waypoint.x, waypoint.y])
         points = np.array(array)
-        tri = Delaunay(points)
+        return Delaunay(points)
+
+    def _split_triangles(self):
+        tri = self._triangulate()
+        any_split = False
+        for triangle in tri.simplices:
+            a = self.waypoints[triangle[0]]
+            b = self.waypoints[triangle[1]]
+            c = self.waypoints[triangle[2]]
+            if self._split_triangle(a, b, c):
+                any_split = True
+        if any_split:
+            self._split_triangles()
+
+    def _create_connections(self):
+        tri = self._triangulate()
         for triangle in tri.simplices:
             a = self.waypoints[triangle[0]]
             b = self.waypoints[triangle[1]]
             c = self.waypoints[triangle[2]]
             a.add_connection(b)
-            a.add_connection(c)
             b.add_connection(a)
-            b.add_connection(c)
+            a.add_connection(c)
             c.add_connection(a)
+            b.add_connection(c)
             c.add_connection(b)
+        for triangle in tri.simplices:
+            a = self.waypoints[triangle[0]]
+            b = self.waypoints[triangle[1]]
+            c = self.waypoints[triangle[2]]
+            self._prune(a, b, c)
+            self._prune(a, c, b)
+            self._prune(b, c, a)
+
+    def _prune(self, a, b, c):
+        x = (a.x + b.x) / 2
+        y = (a.y + b.y) / 2
+        if Waypoint('', x, y).dist(c) < MIN_TRIANGLE_SPLIT:
+            a.connections.remove(b)
+            b.connections.remove(a)
+
+
+    def _split_triangle(self, a, b, c):
+        x = (a.x + b.x + c.x) / 3
+        y = (a.y + b.y + c.y) / 3
+        grid = 10 / MIN_TRIANGLE_SPLIT
+        name = VIRTUAL_WAYPOINT_PREFIX + str(int(x*grid)) + '_' + str(int(y*grid))
+        centroid = Waypoint(name, x, y)
+        if (a.dist(centroid) > MIN_TRIANGLE_SPLIT and
+                b.dist(centroid) > MIN_TRIANGLE_SPLIT and
+                c.dist(centroid) > MIN_TRIANGLE_SPLIT):
+            self.waypoints.append(centroid)
+            return True
+        return False
 
     def plot(self):
         import matplotlib.pyplot as plt
         xs = []
         ys = []
         for w in self.waypoints:
-            xs.append(w.x)
-            ys.append(w.y)
-            plt.annotate(w.name, xy=(w.x*1.01, w.y*1.01))
+            if not w.name.startswith(VIRTUAL_WAYPOINT_PREFIX):
+                plt.annotate(w.name, xy=(w.x*1.01, w.y*1.01))
+                xs.append(w.x)
+                ys.append(w.y)
             for c in w.connections:
                 plt.plot([w.x, c.x], [w.y, c.y])
         plt.plot(xs, ys, 'o')
@@ -230,6 +290,9 @@ class Waypoint(JsonSerializable):
     
     def add_connection(self, waypoint):
         self.connections.append(waypoint)
+
+    def dist(self, waypoint):
+        return np.sqrt((self.x - waypoint.x)**2 + (self.y - waypoint.y)**2)
 
     def dict(self):
         return {'name': self.name, 'x': self.x, 'y': self.y}
@@ -268,7 +331,6 @@ def main(argv):
     if not outputfile:
         outputfile = 'out.pddl'
     world = World.from_json(inputfile)
-    world.create_triangulation()
     world.generate_problem(outputfile)
     world.plot()
 
