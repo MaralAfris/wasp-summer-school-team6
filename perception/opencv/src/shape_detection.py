@@ -22,6 +22,8 @@ from wasp_custom_msgs.msg import object_loc
 import tf
 from math import hypot
 
+import argparse
+
 #Define Constants
 
 #Focal Length of the Asus Prime sensor camera
@@ -48,16 +50,24 @@ def Longest_Length(approxcontour):
 #This is the main class for object detection, it has some initializations about nodes
 #Call back functions etc
 class object_detection:
-    def __init__(self):
+    def __init__(self, args):
         #Create Rospy Publisher and subscriber
-        self.object_location_pub = rospy.Publisher("/object_location", object_loc, queue_size =1)
+        self.object_location_pub = rospy.Publisher('/object_location', object_loc, queue_size =1)
         #original images is huge and creates lot of latency, therefore subscribe to compressed image
 
         #Get image from turtlebot/drones...
-        print("Get image")
-        self.image_sub = rospy.Subscriber("/camera/rgb/image_raw/compressed",CompressedImage, self.callback)
-        #self.image_sub = rospy.Subscriber("/ardrone/image_raw",Image,self.callback)
-        #self.image_sub = rospy.Subscriber("/camera/rgb/image_raw",Image,self.callback)
+		source = Image
+		if args.mode == 'drone': #Drone
+			topic = '/ardrone/image_raw/'
+		else: #Turtlebot
+			topic = '/camera/rgb/image_raw/'
+		
+		if args.src is not None and arg.src == 'compressed':
+			topic += 'compressed/'
+			source = CompressedImage
+		
+        print('Get image from of %s from %s' %(args.mode, topic))
+		self.image_sub = rospy.Subscriber(topic, source, self.callback)
         #Cv Bridge is used to convert images from ROS messages to numpy array for openCV and vice versa
         self.bridge = CvBridge()
         #Obejct to transform listener which will be used to transform the points from one coordinate system to other.
@@ -70,7 +80,7 @@ class object_detection:
         np_arr = np.fromstring(data.data, np.uint8)
         cv_image = cv2.imdecode(np_arr, cv2.CV_LOAD_IMAGE_COLOR)
         #'''
-        #cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+        #cv_image = self.bridge.imgmsg_to_cv2(data, 'bgr8')
         #Create copy of captured image
         img_cpy = cv_image.copy()
         #Color to HSV and Gray Scale conversion
@@ -154,17 +164,43 @@ class object_detection:
 
 
         #Display the captured image
-        cv2.imshow("Image",cv_image)
-        #cv2.imshow("HSV", hsv)
+        cv2.imshow('Image',cv_image)
+        #cv2.imshow('HSV', hsv)
         cv2.waitKey(1)
 
 
+#Check validity of the mode argument provided
+def check_mode(v):
+    if v != 'turtlebot' and v != 'drone':
+        raise argparse.ArgumentTypeError('mode:%s is neither turtlebot nor drone' % v)
+    return v
+
+#Check validity of the source argument provided
+def check_src(v):
+    if v != 'raw' and v != 'compressed':
+        raise argparse.ArgumentTypeError('src:%s is neither raw nor compressed' % v)
+    return v		
+		
 #Main function for the node
 def main(args):
+	#Get options
+	parser = argparse.ArgumentParser(description='List possible arguments for the node')
+	parser.add_argument('mode', nargs='?', type=check_mode, default='turtlebot',
+						help='mode to set use (turtlebot or drone)')
+	parser.add_argument('-s', '--source', nargs='?', type=check_src, default=None,
+						help='force the source of image to use (raw or compressed)')
+	parser.add_argument('-d', '--deactivate', nargs='+', default=None,
+						help='force the deactivation of certain detections (human or medic)')
+
+	args = parser.parse_args()
+	
+	#Start doing stuff
+	print('Received:\n %s' % args) #For testing
+
     print('Starting OpenCV object detection !')
     rospy.init_node('object_detection', anonymous = False)
     print('ROS node initialized !')
-    ic = object_detection()
+    ic = object_detection(args)
     print('Object detection class created !')
     try:
         print('Spin !')
