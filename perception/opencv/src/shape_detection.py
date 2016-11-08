@@ -161,7 +161,7 @@ class object_detection:
 
 #Main function for the node
 def main(args):
-    print('Hello !')
+    print('Starting OpenCV object detection !')
     rospy.init_node('object_detection', anonymous = False)
     print('ROS node initialized !')
     ic = object_detection()
