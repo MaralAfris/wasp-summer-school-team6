@@ -72,12 +72,15 @@ class object_detection:
         self.bridge = CvBridge()
         #Obejct to transform listener which will be used to transform the points from one coordinate system to other.
         self.tl = tf.TransformListener()
-
+        self.grayRedBoy = cv2.imread('MedicKit.png',0)
+        self.grayGreenBoy = cv2.imread('person.png',0)
+        
     #Callback function for subscribed image
     def callback(self,data):
         #The below two functions conver the compressed image to opencv Image
         #'''
         np_arr = np.fromstring(data.data, np.uint8)
+        #The following is no longer named CV_LOAD_IMAGE_COLOR but CV_LOAD_COLOR. Works by defining it instead
         cv2.CV_LOAD_IMAGE_COLOR = 1
         cv_image = cv2.imdecode(np_arr, cv2.CV_LOAD_IMAGE_COLOR)
         #'''
@@ -88,20 +91,43 @@ class object_detection:
         hsv = cv2.cvtColor(cv_image, cv2.COLOR_BGR2HSV)
         #gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
 
-        #Red_Thresholds
-        lower_red1 = np.array([0, 100, 100])
-        upper_red1 = np.array([10, 255,255])
-        lower_red2 = np.array([160,100,100])
-        upper_red2 = np.array([179,255,255])
-        #Blue Thresholds
-        lower_blue = np.array([104,110,110])
-        upper_blue = np.array([143,255,255])
-        #Green Thresholds
-        lower_green = np.array([60,60,46])
-        upper_green = np.array([97,255,255])
-
+        #Thresholds
+        lower_red = np.array([140, 40, 50])
+        upper_red = np.array([190, 200,200])
+        lower_blue = np.array([115,75,50])
+        upper_blue = np.array([130,150,170])
+        lower_green = np.array([28,62,60])
+        upper_green = np.array([48,170,170])
+        
         # Threshold the HSV image to get only single color portions
-        mask2 = cv2.inRange(hsv, lower_green, upper_green)
+        greenMask = cv2.inRange(hsv, lower_green, upper_green)
+        green_cv_image = cv2.bitwise_and(cv_image, cv_image, mask=greenMask)
+
+        #self.grayGreenBoy = cv2.imread('/home/marten/Pictures/GreenBoy.png',0)
+        #greenBoy_gray = cv2.cvtColor(greenBoy, cv2.COLOR_BGR2GRAY)
+        cv_image_gray = cv2.cvtColor(green_cv_image, cv2.COLOR_BGR2GRAY)
+        wGreenBoy, hGreenBoy = self.grayGreenBoy.shape[::-1]       
+        greenBoyMatchingResult=cv2.matchTemplate(cv_image_gray, self.grayGreenBoy, cv2.TM_CCOEFF_NORMED)
+        threshold = 0.25
+        locGreenBoy = np.where(greenBoyMatchingResult >=threshold)
+        for pt in zip (*locGreenBoy[::-1]):
+			#print('found greenBoy!!')
+			cv2.rectangle(cv_image, pt, (pt[0]+wGreenBoy, pt[1]+hGreenBoy), (0,255,255), 2)
+			
+	    # Threshold the HSV image to get only single color portions
+        redMask = cv2.inRange(hsv, lower_red, upper_red)
+        red_cv_image = cv2.bitwise_and(cv_image, cv_image, mask=redMask)
+
+        #self.grayRedBoy = cv2.imread('/home/marten/Pictures/MedicKit.png',0)
+        #redBoy_gray = cv2.cvtColor(redBoy, cv2.COLOR_BGR2GRAY)
+        cv_image_gray = cv2.cvtColor(red_cv_image, cv2.COLOR_BGR2GRAY)
+        wRedBoy, hRedBoy = self.grayRedBoy.shape[::-1]       
+        redBoyMatchingResult=cv2.matchTemplate(cv_image_gray, self.grayRedBoy, cv2.TM_CCOEFF_NORMED)
+        threshold = 0.4
+        locRedBoy = np.where(redBoyMatchingResult >=threshold)
+        for pt in zip (*locRedBoy[::-1]):
+			print('found Medical Kit!!')
+			cv2.rectangle(cv_image, pt, (pt[0]+wRedBoy, pt[1]+hRedBoy), (0,255,255), 2)
 
         #Find contours(borders) for the shapes in the image
         #NOTE if you get following error:
@@ -109,7 +135,9 @@ class object_detection:
         # ValueError: need more than two values to unpack
         # change following line to:
         # contours, hierarchy = cv2.findContours(mask2,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
-        contours, hierarchy = cv2.findContours(mask2,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+        #marten: Have added "_, " to get it working with new cv2:
+        #_, contours, hierarchy = cv2.findContours(mask2,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+        _, contours, hierarchy = cv2.findContours(greenMask,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
 
         #Pass through each contour and check if it has required properties to classify into required object
         for x in range (len(contours)):
@@ -163,10 +191,12 @@ class object_detection:
                 #publish the message
                 self.object_location_pub.publish(obj_info_pub)
 
-
         #Display the captured image
-        cv2.imshow('Image',cv_image)
-        #cv2.imshow('HSV', hsv)
+        cv2.imshow("Image",cv_image)
+        #cv2.imshow("HSV", hsv)
+        #cv2.imshow("res",res)
+        #cv2.imshow("Green screen",green_cv_image)
+        #cv2.imshow("Red screen",red_cv_image)
         cv2.waitKey(1)
 
 
