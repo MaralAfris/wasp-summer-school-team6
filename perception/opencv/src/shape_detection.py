@@ -58,11 +58,11 @@ class object_detection:
         #Get image from turtlebot/drones...
         source = Image
         if args.mode == 'drone': #Drone
-            topic = '/ardrone/image_raw/'
+            topic = '/bebop/image_raw/'
         else: #Turtlebot
             topic = '/camera/rgb/image_raw/'
 
-        if args.source is not None and arg.source == 'compressed':
+        if args.source is not None and args.source == 'compressed':
             topic += 'compressed/'
             source = CompressedImage
 
@@ -78,6 +78,7 @@ class object_detection:
         #The below two functions conver the compressed image to opencv Image
         #'''
         np_arr = np.fromstring(data.data, np.uint8)
+        cv2.CV_LOAD_IMAGE_COLOR = 1
         cv_image = cv2.imdecode(np_arr, cv2.CV_LOAD_IMAGE_COLOR)
         #'''
         #cv_image = self.bridge.imgmsg_to_cv2(data, 'bgr8')
@@ -193,6 +194,10 @@ def main(args):
                         help='force the deactivation of certain detections (human or medic)')
 
     args = parser.parse_args()
+
+    #Add some cleverness
+    if args.source is None:
+        args.source = 'compressed'
 
     #Start doing stuff
     print('Received:\n %s' % args) #For testing
