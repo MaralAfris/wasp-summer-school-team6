@@ -56,18 +56,18 @@ class object_detection:
         #original images is huge and creates lot of latency, therefore subscribe to compressed image
 
         #Get image from turtlebot/drones...
-		source = Image
-		if args.mode == 'drone': #Drone
-			topic = '/ardrone/image_raw/'
-		else: #Turtlebot
-			topic = '/camera/rgb/image_raw/'
-		
-		if args.src is not None and arg.src == 'compressed':
-			topic += 'compressed/'
-			source = CompressedImage
-		
+        source = Image
+        if args.mode == 'drone': #Drone
+            topic = '/ardrone/image_raw/'
+        else: #Turtlebot
+            topic = '/camera/rgb/image_raw/'
+
+        if args.src is not None and arg.src == 'compressed':
+            topic += 'compressed/'
+            source = CompressedImage
+
         print('Get image from of %s from %s' %(args.mode, topic))
-		self.image_sub = rospy.Subscriber(topic, source, self.callback)
+        self.image_sub = rospy.Subscriber(topic, source, self.callback)
         #Cv Bridge is used to convert images from ROS messages to numpy array for openCV and vice versa
         self.bridge = CvBridge()
         #Obejct to transform listener which will be used to transform the points from one coordinate system to other.
@@ -179,23 +179,23 @@ def check_mode(v):
 def check_src(v):
     if v != 'raw' and v != 'compressed':
         raise argparse.ArgumentTypeError('src:%s is neither raw nor compressed' % v)
-    return v		
-		
+    return v
+
 #Main function for the node
 def main(args):
-	#Get options
-	parser = argparse.ArgumentParser(description='List possible arguments for the node')
-	parser.add_argument('mode', nargs='?', type=check_mode, default='turtlebot',
-						help='mode to set use (turtlebot or drone)')
-	parser.add_argument('-s', '--source', nargs='?', type=check_src, default=None,
-						help='force the source of image to use (raw or compressed)')
-	parser.add_argument('-d', '--deactivate', nargs='+', default=None,
-						help='force the deactivation of certain detections (human or medic)')
+    #Get options
+    parser = argparse.ArgumentParser(description='List possible arguments for the node')
+    parser.add_argument('mode', nargs='?', type=check_mode, default='turtlebot',
+                        help='mode to set use (turtlebot or drone)')
+    parser.add_argument('-s', '--source', nargs='?', type=check_src, default=None,
+                        help='force the source of image to use (raw or compressed)')
+    parser.add_argument('-d', '--deactivate', nargs='+', default=None,
+                        help='force the deactivation of certain detections (human or medic)')
 
-	args = parser.parse_args()
-	
-	#Start doing stuff
-	print('Received:\n %s' % args) #For testing
+    args = parser.parse_args()
+
+    #Start doing stuff
+    print('Received:\n %s' % args) #For testing
 
     print('Starting OpenCV object detection !')
     rospy.init_node('object_detection', anonymous = False)
