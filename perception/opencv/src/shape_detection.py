@@ -62,7 +62,7 @@ class object_detection:
         else: #Turtlebot
             topic = '/camera/rgb/image_raw/'
 
-        if args.src is not None and arg.src == 'compressed':
+        if args.source is not None and arg.source == 'compressed':
             topic += 'compressed/'
             source = CompressedImage
 
@@ -176,9 +176,9 @@ def check_mode(v):
     return v
 
 #Check validity of the source argument provided
-def check_src(v):
+def check_source(v):
     if v != 'raw' and v != 'compressed':
-        raise argparse.ArgumentTypeError('src:%s is neither raw nor compressed' % v)
+        raise argparse.ArgumentTypeError('source:%s is neither raw nor compressed' % v)
     return v
 
 #Main function for the node
@@ -187,7 +187,7 @@ def main(args):
     parser = argparse.ArgumentParser(description='List possible arguments for the node')
     parser.add_argument('mode', nargs='?', type=check_mode, default='turtlebot',
                         help='mode to set use (turtlebot or drone)')
-    parser.add_argument('-s', '--source', nargs='?', type=check_src, default=None,
+    parser.add_argument('-s', '--source', nargs='?', type=check_source, default=None,
                         help='force the source of image to use (raw or compressed)')
     parser.add_argument('-d', '--deactivate', nargs='+', default=None,
                         help='force the deactivation of certain detections (human or medic)')
