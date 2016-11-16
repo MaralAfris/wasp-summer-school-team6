@@ -25,23 +25,6 @@ from math import hypot
 
 import argparse
 
-#marten:
-#What to do:
-#move the focal lenght etc in the initialization node, because it is different for the drone and TB.
-#find out how to localize objects.
-#reprint Medic Box. It is too hard to classify!
-#reprint different kinds of persons and try to classify them. Should we have multiple colors? ...
-#... The program is probably able to classify many different kinds of persons.
-#Tune the thresholds for the Medic Box. 
-#Probably send the pictures and the initial localisation to a GUI. The human can then accept..
-#... the objects and determine how big the objects are (40 % of picture width), which is ...
-#... used for localization.
-
-
-#Define Constants
-
-
-
 #This function finds the lengths of all the sides and estimates the longest.
 def Longest_Length(approxcontour):
     #add the first element in the end to complete the loop
@@ -53,7 +36,7 @@ def Longest_Length(approxcontour):
     dist = []
     for d in diffs:
         dist.append(hypot(*d))
-    #find maximum of lenghts found
+    #find maximum of lengths
     LongestSide = max(dist)
     return LongestSide
 
@@ -62,7 +45,7 @@ def Longest_Length(approxcontour):
 class object_detection:
     def __init__(self, args):
         #Create Rospy Publisher and subscriber
-        #marten self.object_location_pub = rospy.Publisher('/object_location', object_loc, queue_size =1)
+        #self.object_location_pub = rospy.Publisher('/object_location', object_loc, queue_size =1)
         #original images is huge and creates lot of latency, therefore subscribe to compressed image
 
         #Get image from turtlebot/drones...
@@ -79,7 +62,7 @@ class object_detection:
             topic = '/camera/rgb/image_raw/'
             #Focal Length of the Asus Prime sensor camera
             self.focal_leng = 570.34222
-            #This may change during the competetion, need to be calibrated
+            #This may change during the competition, need to be calibrated
             self.square_side_lenth = 0.115 #in mts
 
         if args.source is not None and args.source == 'compressed':
@@ -90,40 +73,36 @@ class object_detection:
         self.image_sub = rospy.Subscriber(topic, source, self.callback)
         #Cv Bridge is used to convert images from ROS messages to numpy array for openCV and vice versa
         self.bridge = CvBridge()
-        #Obejct to transform listener which will be used to transform the points from one coordinate system to other.
+        #Object to transform listener which will be used to transform the points from one coordinate system to other.
         self.tl = tf.TransformListener()
         self.grayRedBoy = cv2.imread('MedBox.png',0)#MB funkade med forsta bilden
         self.grayGreenBoy = cv2.imread('BlackPerson.png',0)
-        
+
         self.body_cascade = cv2.CascadeClassifier('haarcascade_fullbody.xml')
         self.jumpOver = 1
     #Callback function for subscribed image
     def callback(self,data):
       self.jumpOver=self.jumpOver+1
       self.jumpOver=self.jumpOver%20
-      if self.jumpOver==1:  
-        #The below two functions conver the compressed image to opencv Image
-        #'''
+      if self.jumpOver==1:
         np_arr = np.fromstring(data.data, np.uint8)
         #The following is no longer named CV_LOAD_IMAGE_COLOR but CV_LOAD_COLOR. Works by defining it instead
         cv2.CV_LOAD_IMAGE_COLOR = 1
-        #marten cv_image = cv2.imdecode(np_arr, cv2.CV_LOAD_IMAGE_COLOR)
         img_for_presentation = cv2.imdecode(np_arr, cv2.CV_LOAD_IMAGE_COLOR)
         img_original = cv2.copyMakeBorder(img_for_presentation,0,0,0,0,cv2.BORDER_REPLICATE)
-        #'''
         #cv_image = self.bridge.imgmsg_to_cv2(data, 'bgr8')
         #Create copy of captured image
-        #marten img_cpy = cv_image.copy()
+        #img_cpy = cv_image.copy()
         #Color to HSV and Gray Scale conversion
         hsv = cv2.cvtColor(img_original, cv2.COLOR_BGR2HSV)
         #gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
 
-		#img = cv_image
+        #img = cv_image
         gray = cv2.cvtColor(img_original, cv2.COLOR_BGR2GRAY)
         bodies = self.body_cascade.detectMultiScale(gray,1.3,5)
         for (x,y,w,h) in bodies:
-			cv2.rectangle(img_for_presentation, (x,y), (x+w, y+h), (255,0,0), 2)
-			
+            cv2.rectangle(img_for_presentation, (x,y), (x+w, y+h), (255,0,0), 2)
+
         #Thresholds
 
         # worked with one video for TB, but not the other:
@@ -148,48 +127,21 @@ class object_detection:
             upper_blue = np.array([127,150,170])#TB 127,150,170
             lower_green = np.array([28,62,60])#TB 28,62,60
             upper_green = np.array([48,170,170])#TB 48,170,170
-            
-        ## Threshold the HSV image to get only single color portions
-        #greenMask = cv2.inRange(hsv, lower_green, upper_green)
-        #green_cv_image = cv2.bitwise_and(cv_image, cv_image, mask=greenMask)
-        ##self.grayGreenBoy = cv2.imread('/home/marten/Pictures/GreenBoy.png',0)
-        ##greenBoy_gray = cv2.cvtColor(greenBoy, cv2.COLOR_BGR2GRAY)
-        #cv_image_gray = cv2.cvtColor(green_cv_image, cv2.COLOR_BGR2GRAY)
-        ##gauss_cv_image_gray = cv2.adaptiveThreshold(cv_image_gray, 255, cv2. 
-        #wGreenBoy, hGreenBoy = self.grayGreenBoy.shape[::-1]       
-        #greenBoyMatchingResult=cv2.matchTemplate(cv_image_gray, self.grayGreenBoy, cv2.TM_CCOEFF_NORMED)
-        #threshold = 0.5
-        #locGreenBoy = np.where(greenBoyMatchingResult >=threshold)
-        #for pt in zip (*locGreenBoy[::-1]):
-			#print('found greenBoy!!')
-			#cv2.rectangle(cv_image, pt, (pt[0]+wGreenBoy, pt[1]+hGreenBoy), (0,0,255), 2)
-			
-		## Threshold the HSV image to get only single color portions
-        #blueMask = cv2.inRange(hsv, lower_blue, upper_blue)
-        #blue_cv_image = cv2.bitwise_and(cv_image, cv_image, mask=blueMask)
-        #cv_image_gray = cv2.cvtColor(blue_cv_image, cv2.COLOR_BGR2GRAY)
-        #wBlueBoy, hBlueBoy = self.grayGreenBoy.shape[::-1]       
-        #blueBoyMatchingResult=cv2.matchTemplate(cv_image_gray, self.grayGreenBoy, cv2.TM_CCOEFF_NORMED)
-        #threshold = 0.5
-        #locBlueBoy = np.where(blueBoyMatchingResult >=threshold)
-        #for pt in zip (*locBlueBoy[::-1]):
-			#print('found blueBoy!!')
-			#cv2.rectangle(cv_image, pt, (pt[0]+wBlueBoy, pt[1]+hBlueBoy), (255,0,255), 2)	
-			
-	    # Threshold the HSV image to get only single color portions
+
+        # Threshold the HSV image to get only single color portions
         redMask_upper = cv2.inRange(hsv, lower_red_upper, upper_red_upper)
         redMask_lower = cv2.inRange(hsv, lower_red_lower, upper_red_lower)
         redMask = cv2.bitwise_or(redMask_upper, redMask_lower)
-        
+
         red_cv_image = cv2.bitwise_and(img_original, img_original, mask=redMask)
         cv_image_gray = cv2.cvtColor(red_cv_image, cv2.COLOR_BGR2GRAY)
-        wRedBoy, hRedBoy = self.grayRedBoy.shape[::-1]       
+        wRedBoy, hRedBoy = self.grayRedBoy.shape[::-1]
         redBoyMatchingResult=cv2.matchTemplate(cv_image_gray, self.grayRedBoy, cv2.TM_CCOEFF_NORMED)
         threshold = 0.3#0.4 for drone
         locRedBoy = np.where(redBoyMatchingResult >=threshold)
         for pt in zip (*locRedBoy[::-1]):
-			print('found Medical Kit!!')
-			cv2.rectangle(img_for_presentation, pt, (pt[0]+wRedBoy, pt[1]+hRedBoy), (0,255,255), 2)
+            print('found Medical Kit!!')
+            cv2.rectangle(img_for_presentation, pt, (pt[0]+wRedBoy, pt[1]+hRedBoy), (0,255,255), 2)
 
         #Find contours(borders) for the shapes in the image
         #NOTE if you get following error:
@@ -258,7 +210,6 @@ class object_detection:
         #cv2.imshow("HSV", hsv)
         #cv2.imshow("res",res)
         #cv2.imshow("Green screen",green_cv_image)
-       
         #cv2.imshow("Blue screen",blue_cv_image)
         cv2.imshow("img",img_for_presentation)
         cv2.imshow("Red screen",red_cv_image)
