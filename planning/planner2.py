@@ -2,7 +2,7 @@
 
 from world import World
 from action import Action,construct_graph
-from map2 import *
+from map import *
 
 import subprocess,os,sys,inspect
 import inspect, os
@@ -14,7 +14,7 @@ PROBLEM = "_problem.pddl"
 if __name__ == "__main__":
     
     #initial_state_json = sys.argv[1]
-    initial_state_json = '../../data/problems/room.json'
+    initial_state_json = '../data/problems/room.json'
 
     abspath = os.path.abspath(inspect.getfile(inspect.currentframe()))
     script_dir = os.path.dirname(abspath)
@@ -24,7 +24,7 @@ if __name__ == "__main__":
     points = []
     for waypoint in world.waypoints:
         points.append(waypoint.point)
-    grid = OccupancyGrid.from_pgm('../../data/mapToG2')
+    grid = OccupancyGrid.from_pgm('../data/mapToG2')
     map = Map(grid, points)
 
     world.add_map_info(map)

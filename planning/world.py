@@ -1,6 +1,6 @@
 import sys
 from settings import *
-from map2 import *
+from map import *
 from copy import deepcopy
 from enum import Enum
 import numpy as np
