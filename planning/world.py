@@ -2,7 +2,6 @@ import sys
 from settings import *
 from map import *
 from copy import deepcopy
-from enum import Enum
 import numpy as np
 
 class World(object):
@@ -225,7 +224,6 @@ class Agent(JsonSerializable):
 class Waypoint(JsonSerializable):
     def __init__(self, name, point, point_type):
         assert type(point) == tuple
-        assert type(point_type) == PointType
         self.name = name
         self.point = point
         self.point_type = point_type
@@ -239,9 +237,8 @@ class Waypoint(JsonSerializable):
     def dist(self, other):
         return np.hypot(self.point[0]-other.point[0], self.point[1]-other.point[1])
 
-class PointType(Enum):
-    initial = 1
-    mesh = 2
+class PointType(object):
+    initial, mesh = range(2)
 
 class Box(JsonSerializable):
     def __init__(self, name, location, free):
