@@ -139,41 +139,63 @@ class object_detection:
 
 
 #Calculate coordinates according to picture size and stuff
-#def calc_coord(x, y, w, h, source):
-    #if source == 'turtlebot':
-    #    focal_leng = 570.34222
-    #    square_side_lenth = 0.115 #in mts
-    #else:
-    #    focal_leng = 570.34222
-    #    square_side_lenth = 0.115 #in mts
+def calc_coord(x, y, w, h, source, object):
+	#Image center
+	ctr_x = 239.5
+	ctr_y = 319.5
 
-    #Calculate Cordinates wrt to Camera, convert to Map
-    #Coordinates and publish message for storing
-    #319.5, 239.5 = image centre
-    #obj_cam_x = ((obj_x - 319.5)*Distance)/self.focal_leng
-    #obj_cam_y = ((obj_y - 239.5)*Distance)/self.focal_leng
+	#Set focal length
+    if source == 'turtlebot':
+       focal_leng = 570.34222
+    else:
+       focal_leng = 570.34222
+	
+	#Set properties per object detection type
+	if object == 'person':
+		obj_orig_x = 1
+		obj_orig_y = 2
+		obj_orig_d = 1
+		obj_id = 1
+	elif object == 'medkit':
+		obj_orig_x = 1
+		obj_orig_y = 2
+		obj_orig_d = 1
+		obj_id = 2
+	else:
+		return None
+
+    #Calculate distance of object from the camera
+	obj_dist_x = (obj_orig_x * focal_leng) / w
+	obj_dist_y = (obj_orig_x * focal_leng) / h
+	dist = (obj_dist_x + obj_dist_y) / 2
+	
+	#Calculate position of object from the camera
+	obj_mid_x = x + w/2
+	obj_mid_y = y + h/2
+	obj_cam_x = ((obj_mid_x - ctr_x)*dist) / focal_leng
+    obj_cam_y = ((obj_mid_x - ctr_y)*dist) / focal_leng
 
     #convert the x,y in camera frame to a geometric stamped point
-    #P = PointStamped()
-    #P.header.stamp = rospy.Time.now() - rospy.Time(23)
-    #print ('time: ', data.header.stamp)
-    #P.header.frame_id = 'camera_rgb_optical_frame'
-    #P.point.x = obj_cam_x
-    #P.point.y = obj_cam_y
-    #P.point.z = Distance
+    P = PointStamped()
+    P.header.stamp = rospy.Time.now() - rospy.Time(23)
+    print ('time: ', data.header.stamp)
+    P.header.frame_id = 'camera_rgb_optical_frame'
+    P.point.x = obj_cam_x
+    P.point.y = obj_cam_y
+    P.point.z = dist
 
     #Transform Point into map coordinates
-    #trans_pt = self.tl.transformPoint('/map', P)
+    trans_pt = self.tl.transformPoint('/map', P)
 
-    #fill in the publisher object to publish
-    #obj_info_pub = object_loc()
-    #obj_info_pub.ID = 27 #ID need to be changed
-    #obj_info_pub.point.x = trans_pt.point.x
-    #obj_info_pub.point.y = trans_pt.point.y
-    #obj_info_pub.point.z = trans_pt.point.z
+    #Fill in the publisher object to publish
+    obj_info_pub = object_loc()
+    obj_info_pub.ID = obj_id
+    obj_info_pub.point.x = trans_pt.point.x
+    obj_info_pub.point.y = trans_pt.point.y
+    obj_info_pub.point.z = trans_pt.point.z
 
-    #publish the message
-    #self.object_location_pub.publish(obj_info_pub)
+    #Publish the message
+    self.object_location_pub.publish(obj_info_pub)
 
 #Check validity of the mode argument provided
 def check_mode(v):
