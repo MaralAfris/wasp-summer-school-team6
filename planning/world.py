@@ -1,15 +1,9 @@
-#!/usr/bin/env python
-
-from scipy.spatial import Delaunay
-import numpy as np
 import sys
-
-TURTLE_SPEED = 1 
-DRONE_SPEED = 1
-
-MIN_TRIANGLE_SPLIT = 1
-VIRTUAL_WAYPOINT_PREFIX = 'vt_'
-MAX_MESH_SIZE = 500
+from settings import *
+from map2 import *
+from copy import deepcopy
+from enum import Enum
+import numpy as np
 
 class World(object):
     
@@ -18,7 +12,32 @@ class World(object):
         self.waypoints = waypoints
         self.boxes = boxes
         self.persons = persons
-        self._create_mesh()
+
+    def add_map_info(self, map):
+        self.edges = []
+
+        wp_as_nodes = set()
+        mesh = 1
+        for point in map.nodes:
+            if point not in wp_as_nodes:
+                self.waypoints.append(Waypoint('mesh'+str(mesh), point, PointType.mesh))
+                mesh += 1
+        self.edges = []
+        visited = set()
+        for i,nbs in enumerate(map.neighbors):
+            for node in nbs:
+                if (i,node) in visited:
+                    continue
+                visited.add((i,node))
+                visited.add((node,i))
+                self.edges.append(Edge(self.waypoints[i], self.waypoints[node]))
+        #print visited
+        #print self.edges
+            #self.neighbors = []
+            #wp_edge = deepcopy(edge)
+            #wp_edge.wp1 = next(p for p in self.waypoints if p.point == edge.p1)
+            #wp_edge.wp2 = next(p for p in self.waypoints if p.point == edge.p2)
+            #self.edges.append(wp_edge)
 
     @classmethod
     def from_json(cls, json_file):
@@ -32,10 +51,13 @@ class World(object):
         persons = []
 
         for agent in data["agents"]:
-            agents.append(Agent(agent["name"], agent["agent_type"], agent["location"], agent["carrying"]))
+            agents.append(Agent(agent["name"], agent["agent_type"], 
+                agent["location"], agent["carrying"]))
 
         for waypoint in data["waypoints"]:
-            waypoints.append(Waypoint(waypoint["name"], waypoint["x"], waypoint["y"]))
+            x = waypoint["x"]
+            y = waypoint["y"]
+            waypoints.append(Waypoint(waypoint["name"], (x, y), PointType.initial))
 
         # waypoints must be sorted to make virtual waypoints consistently generated
         waypoints.sort(key=lambda waypoint: waypoint.name)
@@ -44,7 +66,8 @@ class World(object):
             boxes.append(Box(box["name"], box["location"], box["free"]))
 
         for person in data["persons"]:
-            persons.append(Person(person["name"], person["location"], person["handled"]))
+            persons.append(Person(person["name"], person["location"], 
+                person["handled"]))
 
         obj = cls(agents, waypoints, boxes, persons)
         return obj
@@ -54,7 +77,7 @@ class World(object):
         data = {}
 
         data['agents'] = _list_as_dict(self.agents)
-        data['waypoints'] = _list_as_dict(self.waypoints)
+        data['waypoints'] = _list_as_dict(filter(lambda wp: wp.point_type == PointType.initial, self.waypoints))
         data['boxes'] = _list_as_dict(self.boxes)
         data['persons'] = _list_as_dict(self.persons)
 
@@ -62,7 +85,6 @@ class World(object):
         f = open(json_file, 'w')
         print >> f, j
         f.close()
-
 
     def agent(self, name):
         for agent in self.agents:
@@ -106,8 +128,8 @@ class World(object):
 
         f.write('  ')
         for waypoint in self.waypoints:
-            f.write(waypoint.name + '_air' + ' ')
-            empty_waypoint_set.add(waypoint.name + '_air')
+            f.write(waypoint.as_air().name + ' ')
+            empty_waypoint_set.add(waypoint.as_air().name)
         f.write('- airwaypoint\n')
 
         f.write('  ')
@@ -123,14 +145,19 @@ class World(object):
         f.write('\n')
         f.write('(:init\n')
 
-        for waypoint in self.waypoints:
-            for connection in waypoint.connections:
-                dist = waypoint.dist(connection)
-                tdist = dist / TURTLE_SPEED
-                ddist = dist / DRONE_SPEED
-                f.write('  (= (move-duration ' + waypoint.name + ' ' + connection.name + ') ' + str(tdist) + ')\n')
-                f.write('  (= (move-duration ' + waypoint.name + '_air ' + connection.name + '_air) ' + str(ddist) + ')\n')
-            f.write('\n')
+        def print_edge(wp1, wp2, dist):
+            f.write('  (= (move-duration ' + wp1.name + \
+                    ' ' + wp2.name + ') ' + str(dist) + ')\n')
+
+        for edge in self.edges:
+            dist = edge.p1.dist(edge.p2)
+            tdist = dist / settings.plan['turtle_speed']
+            ddist = dist / settings.plan['drone_speed']
+            print_edge(edge.p1, edge.p2, tdist)
+            print_edge(edge.p2, edge.p1, tdist)
+            print_edge(edge.p1.as_air(), edge.p2.as_air(), ddist)
+            print_edge(edge.p2.as_air(), edge.p1.as_air(), ddist)
+        f.write('\n')
 
         for waypoint in self.waypoints:
             f.write('  (over ' + waypoint.name + '_air ' + waypoint.name + ')\n')
@@ -177,100 +204,12 @@ class World(object):
         f.write(')))\n')
 
         f.close()
-        
-
-    def _create_mesh(self):
-        self._split_triangles(set())
-        self._create_connections()
-        names = set()
-        for waypoint in self.waypoints:
-            if waypoint.name in names:
-                raise Exception('duplicate name ' + waypoint.name)
-            names.add(waypoint.name)
-
-    def _triangulate(self):
-        array = [];
-        for waypoint in self.waypoints:
-            array.append([waypoint.x, waypoint.y])
-        points = np.array(array)
-        return Delaunay(points)
-
-    def _split_triangles(self, waypoint_names):
-        tri = self._triangulate()
-        any_split = False
-        for triangle in tri.simplices:
-            a = self.waypoints[triangle[0]]
-            b = self.waypoints[triangle[1]]
-            c = self.waypoints[triangle[2]]
-            if self._split_triangle(a, b, c, waypoint_names):
-                any_split = True
-        if any_split:
-            self._split_triangles(waypoint_names)
-
-    def _split_triangle(self, a, b, c, waypoint_names):
-        x = (a.x + b.x + c.x) / 3
-        y = (a.y + b.y + c.y) / 3
-        print x,y
-        grid = 10 / MIN_TRIANGLE_SPLIT
-        name = VIRTUAL_WAYPOINT_PREFIX + str(int(x*grid)) + '_' + str(int(y*grid))
-        centroid = Waypoint(name, x, y)
-        if (name not in waypoint_names and 
-                a.dist(centroid) > MIN_TRIANGLE_SPLIT and
-                b.dist(centroid) > MIN_TRIANGLE_SPLIT and
-                c.dist(centroid) > MIN_TRIANGLE_SPLIT):
-            self.waypoints.append(centroid)
-            waypoint_names.add(name)
-            return True
-        return False
-
-    def _create_connections(self):
-        tri = self._triangulate()
-        for triangle in tri.simplices:
-            a = self.waypoints[triangle[0]]
-            b = self.waypoints[triangle[1]]
-            c = self.waypoints[triangle[2]]
-            a.add_connection(b)
-            b.add_connection(a)
-            a.add_connection(c)
-            c.add_connection(a)
-            b.add_connection(c)
-            c.add_connection(b)
-        for triangle in tri.simplices:
-            a = self.waypoints[triangle[0]]
-            b = self.waypoints[triangle[1]]
-            c = self.waypoints[triangle[2]]
-            self._prune(a, b, c)
-            self._prune(a, c, b)
-            self._prune(b, c, a)
-
-    def _prune(self, a, b, c):
-        x = (a.x + b.x) / 2
-        y = (a.y + b.y) / 2
-        if Waypoint('', x, y).dist(c) < MIN_TRIANGLE_SPLIT and len(a.connections) > 1 and len(b.connections) > 1:
-            a.connections.remove(b)
-            b.connections.remove(a)
-
-    def plot(self):
-        import matplotlib.pyplot as plt
-        xs = []
-        ys = []
-        for w in self.waypoints:
-            if not w.name.startswith(VIRTUAL_WAYPOINT_PREFIX):
-                plt.annotate(w.name, xy=(w.x*1.01, w.y*1.01))
-                xs.append(w.x)
-                ys.append(w.y)
-            for c in w.connections:
-                plt.plot([w.x, c.x], [w.y, c.y])
-        plt.plot(xs, ys, 'o')
-        plt.axis('equal')
-        plt.show()
 
 def _list_as_dict(alist):
     new_list = []
     for a in alist:
         new_list.append(a.dict())
     return new_list
-
 
 class JsonSerializable(object):
     def dict(self):
@@ -284,20 +223,25 @@ class Agent(JsonSerializable):
         self.carrying = carrying
 
 class Waypoint(JsonSerializable):
-    def __init__(self, name, x, y):
+    def __init__(self, name, point, point_type):
+        assert type(point) == tuple
+        assert type(point_type) == PointType
         self.name = name
-        self.x = x
-        self.y = y
-        self.connections = []
-    
-    def add_connection(self, waypoint):
-        self.connections.append(waypoint)
+        self.point = point
+        self.point_type = point_type
 
-    def dist(self, waypoint):
-        return np.sqrt((self.x - waypoint.x)**2 + (self.y - waypoint.y)**2)
+    def as_air(self):
+        return Waypoint(self.name + '_air', self.point, self.point_type)
 
     def dict(self):
-        return {'name': self.name, 'x': self.x, 'y': self.y}
+        return {'name': self.name, 'x': self.point[0], 'y': self.point[1]}
+
+    def dist(self, other):
+        return np.hypot(self.point[0]-other.point[0], self.point[1]-other.point[1])
+
+class PointType(Enum):
+    initial = 1
+    mesh = 2
 
 class Box(JsonSerializable):
     def __init__(self, name, location, free):
@@ -311,31 +255,9 @@ class Person(JsonSerializable):
         self.location = location
         self.handled = handled
 
-def main(argv):
-    import getopt
-    inputfile = ''
-    outputfile = ''
-    try:
-        opts, args = getopt.getopt(argv,"hi:o:",["ifile=","ofile="])
-    except getopt.GetoptError:
-        print 'world.py -i <inputfile> -o <outputfile>'
-        sys.exit(2)
-    for opt, arg in opts:
-        if opt == '-h':
-            print 'world.py -i <inputfile> -o <outputfile>'
-            sys.exit()
-        elif opt in ("-i", "--ifile"):
-            inputfile = arg
-        elif opt in ("-o", "--ofile"):
-            outputfile = arg
-    if not inputfile:
-        inputfile = 'problems/big.json'
-    if not outputfile:
-        outputfile = 'out.pddl'
-    world = World.from_json(inputfile)
-    world.generate_problem(outputfile)
-    world.plot()
-
-
-if __name__ == "__main__":
-    main(sys.argv[1:])
+class Edge(object):
+    def __init__(self, p1, p2):
+        assert type(p1) == Waypoint
+        assert type(p2) == Waypoint
+        self.p1 = p1
+        self.p2 = p2

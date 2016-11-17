@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import sys,re
 from world import World, Box, Agent, Person, Waypoint
 
@@ -42,26 +40,28 @@ def add_deps(root, root_child, new_node):
             add_deps(root, su, new_node)
 
 def from_plan(line, world):
-    planre = re.compile('[0-9.]+: \(([_a-z0-9- ]+)\) \[[0-9.]+\]')
+    planre = re.compile('[0-9.]+: \(([_a-z0-9- ]+)\) \[([0-9.]+)\]')
     m = planre.match(line)
     if m is not None:
         group = m.group(1)
+        duration = float(m.group(2))
         parts = group.split(" ")
         args = parts[1:len(parts)]
         action = parts[0]
         if action == 'move':
-            return Move(args, world)
+            return Move(args, duration, world)
         elif action == 'deliver':
-            return Deliver(args, world)
+            return Deliver(args, duration, world)
         elif action == 'pick-up':
-            return PickUp(args, world)
+            return PickUp(args, duration, world)
         elif action == 'hand-over':
-            return HandOver(args, world)
+            return HandOver(args, duration, world)
     return None
 
 
 class Action(object):
-    def __init__(self, args, world):
+    def __init__(self, args, duration, world):
+        self.duration = duration
         self.symbols = set(args)
         self.args = args
         self.succ = []
@@ -90,18 +90,19 @@ class Action(object):
         for e in self.pre:
             deps.append(str(e.index))
 
-        return str(self.index) + ' [' + ', '.join(deps) + '] ' + self.__class__.__name__ + ' ' + ', '.join(self.args)
+        return str(self.index) + ' [' + ', '.join(deps) + '] ' + \
+                self.__class__.__name__ + ' ' + ', '.join(self.args)
 
 class Root(Action):
     def __init__(self, world):
-        super(Root, self).__init__([], world)
+        super(Root, self).__init__([], 0, world)
 
     def overlaps(self, other):
         return True
 
 class Move(Action):
-    def __init__(self, args, world):
-        super(Move, self).__init__(args, world)
+    def __init__(self, args, duration, world):
+        super(Move, self).__init__(args, duration, world)
         self.agent = world.agent(args[0])
         self.to = world.waypoint(args[2])
 
@@ -109,8 +110,8 @@ class Move(Action):
         self.agent.location = self.to.name
 
 class Deliver(Action):
-    def __init__(self, args, world):
-        super(Deliver, self).__init__(args, world)
+    def __init__(self, args, duration, world):
+        super(Deliver, self).__init__(args, duration, world)
         self.agent = world.agent(args[0])
         self.box = world.box(args[1])
         self.person = world.person(args[len(args)-1])
@@ -122,8 +123,8 @@ class Deliver(Action):
         self.person.handled = True
 
 class PickUp(Action):
-    def __init__(self, args, world):
-        super(PickUp, self).__init__(args, world)
+    def __init__(self, args, duration, world):
+        super(PickUp, self).__init__(args, duration, world)
         self.agent = world.agent(args[0])
         self.box = world.box(args[1])
 
@@ -133,8 +134,8 @@ class PickUp(Action):
         self.box.free = False
 
 class HandOver(Action):
-    def __init__(self, args, world):
-        super(HandOver, self).__init__(args, world)
+    def __init__(self, args, duration, world):
+        super(HandOver, self).__init__(args, duration, world)
         self.drone = world.agent(args[0])
         self.turtlebot = world.agent(args[1])
         self.box = world.box(args[2])

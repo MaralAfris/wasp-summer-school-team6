@@ -1,0 +1,144 @@
+{
+	"agents": [
+		{
+			"name": "turtlebot1",
+			"agent_type": "turtlebot",
+			"location": "w1",
+			"carrying": null
+		},
+		{
+			"name": "turtlebot2",
+			"agent_type": "turtlebot",
+			"location": "w2",
+			"carrying": null
+		},
+		{
+			"name": "drone1",
+			"agent_type": "drone",
+			"location": "w3",
+			"carrying": null
+		},
+		{
+			"name": "drone2",
+			"agent_type": "drone",
+			"location": "w4",
+			"carrying": null
+		}
+	],
+	"waypoints": [
+		{
+			"name": "w1",
+			"x": -0.84,
+			"y": 2.01 
+		},
+		{
+			"name": "w2",
+			"x": -1.41,
+			"y": 2.11 
+		},
+		{
+			"name": "w3",
+			"x": -0.89,
+			"y": 0.72
+		},
+		{
+			"name": "w4",
+			"x": 1.06,
+			"y": 1.64
+		},
+		{
+			"name": "w5",
+			"x": 0.71,
+			"y": 2.3
+		},
+		{
+			"name": "w6",
+			"x": 1.30,
+			"y": 2.36
+		},
+		{
+			"name": "w7",
+			"x": 1.25,
+			"y": 0.64
+		},
+		{
+			"name": "w8",
+			"x": 0.78,
+			"y": 0.14
+		},
+		{
+			"name": "w9",
+			"x": 0.00,
+			"y": -0.23
+		},
+		{
+			"name": "w10",
+			"x": 0.15,
+			"y": -1.88
+		},
+		{
+			"name": "w11",
+			"x": -2.59,
+			"y": -3.15
+		},
+		{
+			"name": "w12",
+			"x": 1.15,
+			"y": -4.92
+		},
+		{
+			"name": "w13",
+			"x": -3.4,
+			"y": 0.29
+		}
+	],
+	"boxes": [
+		{
+			"name": "box1",
+			"location": "w5",
+			"free": true
+		},
+		{
+			"name": "box2",
+			"location": "w6",
+			"free": true
+		},
+		{
+			"name": "box3",
+			"location": "w7",
+			"free": true
+		},
+		{
+			"name": "box4",
+			"location": "w8",
+			"free": true
+		},
+		{
+			"name": "box4",
+			"location": "w9",
+			"free": true
+		}
+	],
+	"persons": [
+		{
+			"name": "person1",
+			"location": "w10",
+			"handled": false
+		},
+		{
+			"name": "person2",
+			"location": "w11",
+			"handled": false
+		},
+		{
+			"name": "person3",
+			"location": "w12",
+			"handled": false
+		},
+		{
+			"name": "person4",
+			"location": "w13",
+			"handled": false
+		}
+	]
+}
