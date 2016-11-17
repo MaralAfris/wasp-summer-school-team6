@@ -1,0 +1,27 @@
+{
+	"agents": [
+		{
+			"name":"turtle1","agent_type":"turtlebot","location":"w1","carrying":null
+		},
+		{
+			"name":"drone1","agent_type":"drone","location":"w2","carrying":null
+		}
+	],
+	"boxes": [
+		{
+			"name":"box1","location":"b1","free":true
+		}
+	],
+	"persons": [
+		{
+			"name":"person1","location":"p1","handled":false
+		}
+	],
+	"waypoints": [
+		{"name":"b1","x":0,"y":1},
+		{"name":"p1","x":1,"y":0},
+		{"name":"w1","x":1,"y":1},
+		{"name":"w2","x":-1,"y":1}
+	]
+}
+
