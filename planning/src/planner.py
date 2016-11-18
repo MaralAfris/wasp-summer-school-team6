@@ -1,10 +1,9 @@
 import rospy
-from geometry_msgs.msg import PoseArray
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseArray, Pose, PoseStamped
 from actionlib_msgs.msg import GoalStatusArray
 from std_msgs.msg import Int16
 import time
-
+"""
 # Arrays that keep information about goals
 turtle_goals = []
 drone_goals = []
@@ -69,10 +68,10 @@ def is_at_rendezvous(goal):
 # This Callback function will be called everytime a turtle goal is ached.
 # goal_publisher will publish the index of point in goal list
 def turtle_completed(data):
-    global turtle_goals
-    index = data.data
-    update_goal_list(turtle_goals, index)
-    publish_to_turtle_if_allowed()
+    #global turtle_goals
+    #index = data.data
+    #update_goal_list(turtle_goals, index)
+    #publish_to_turtle_if_allowed()
 
 # This Callback function will be called everytime a drone goal is ached.
 # goal_publisher will publish the index of point in goal list
@@ -140,29 +139,44 @@ def init_plan():
            turtle_goals.append(0.0, 0.0, rendezvous)
            drone_goals.append(0.0, 0.0, rendezvous)
            drone_goals.append(0.0, 0.0, putdown) # action only for drone
-
+"""
 #Init node
 def start():
-    global pub_turtle, pub_drone
-	#Initialize curnt node with some name
-	rospy.init_node('planner')
+    #global pub_turtle, pub_drone
+    #Initialize curnt node with some name
+    rospy.init_node('planner')
     #Initialize publisher to publish PoseArray
-    pub_turtle = rospy.Publisher("/list_of_turtle_goals", PoseArray, queue_size = 1)
-    pub_drone = rospy.Publisher("/list_of_drone_goals", PoseArray, queue_size = 1)
+    publisher = rospy.Publisher("/list_of_turtle_goals", PoseArray, queue_size = 1)
+    #pub_drone = rospy.Publisher("/list_of_drone_goals", PoseArray, queue_size = 1)
 
     #Subscribe to message published from goal_publisher about the goal accomplished
-    rospy.Subscriber("/turtle_goal_completed", Int16, turtle_completed)
+    #rospy.Subscriber("/turtle_goal_completed", Int16, turtle_completed)
     #Subscribe to message published from goal_publisher about the goal accomplished
     #rospy.Subscriber("/drone_goal_completed", Int16, drone_completed)
     #Sleep for a while to let all nodes Initialize
-    time.sleep(.300)
+    print "Starting to sleep..."
+    time.sleep(5)
+    print "Woke up"
+    #Cate an object to new pose array
+    newPoseArray = PoseArray()
+    #assign frame of these pose objects as map
+    newPoseArray.header.frame_id = "map"
+    newPoseArray.poses.append(Pose())
+    newPoseArray.poses[0].position.x = -1.0
+    newPoseArray.poses[0].position.y = 1.0
+    newPoseArray.poses[0].position.z = 0; # the type of the goal
+    #Publish the new list to the tb_path_publisher to instruct the robot
+    publisher.publish(newPoseArray)
 
     #Init the global plan
-    init_plan()
+    #init_plan()
     
     #Publish initial goals
-    publish_to_drone_if_allowed()
-    publish_to_turtle_if_allowed()
+    #publish_to_drone_if_allowed()
+    #publish_to_turtle_if_allowed()
 
     #This keeps the  active till it is killed
     rospy.spin()
+
+if __name__ == '__main__':
+    start()

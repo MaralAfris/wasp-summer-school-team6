@@ -1,10 +1,9 @@
-#!/usr/bin/env python
-
 import sys,re,rospy;
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 import actionlib
+from std_msgs.msg import Int16
 from actionlib_msgs.msg import *
-from geometry_msgs.msg import Pose, Point, Quaternion
+from geometry_msgs.msg import Pose, Point, Quaternion, PoseArray
 
 previous_coords = [0.0, 0.0]
 
@@ -59,7 +58,7 @@ class GoToPose():
 
 def turtle_action(data):
     global previous_coords
-
+    print "Called turtle action!"
     # Action types from planner
     move = 0
     deliver = 2
@@ -114,10 +113,9 @@ def moveToAcoordinate(coorX, coorY, is_move):
 def start():
     global pub_completed
     rospy.init_node('turtle_goal_publisher', anonymous=False)
-	#Assigin publisher that publishes the index of the goal just accomplished
-	pub_completed = rospy.Publisher('/turtle_goal_completed', Int16, queue_size=1)
+    pub_completed = rospy.Publisher('/turtle_goal_completed', Int16, queue_size=1)
     rospy.Subscriber("/list_of_turtle_goals", PoseArray, turtle_action)
-   rospy.spin()
+    rospy.spin()
 
 if __name__ == '__main__':
     start()
