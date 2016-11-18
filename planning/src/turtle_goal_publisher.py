@@ -1,9 +1,9 @@
 import sys,re,rospy;
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 import actionlib
-from std_msgs.msg import Int16
 from actionlib_msgs.msg import *
-from geometry_msgs.msg import Pose, Point, Quaternion, PoseArray
+from geometry_msgs.msg import Pose, PoseArray, Point, Quaternion
+from std_msgs.msg import Int16
 
 previous_coords = [0.0, 0.0]
 
@@ -58,7 +58,7 @@ class GoToPose():
 
 def turtle_action(data):
     global previous_coords
-    print "Called turtle action!"
+
     # Action types from planner
     move = 0
     deliver = 2
@@ -68,19 +68,20 @@ def turtle_action(data):
     x_coord = data.poses[0].position.x
     y_coord = data.poses[0].position.y
     action_type = data.poses[0].position.z
+    actionId = data.poses[0].orientation.z
 
     if action_type == deliver:
         is_move = False
         x_coord = previous_coords[0]
         y_coord = previous_coords[1]
 
-    moveToAcoordinate(x_coord, y_coord, is_move)
+    moveToAcoordinate(x_coord, y_coord, is_move, actionId)
 
     previous_coords[0] = x_coord
     previous_coords[1] = y_coord
 
 # a function that moves the turtlebot to a x,y location
-def moveToAcoordinate(coorX, coorY, is_move):
+def moveToAcoordinate(coorX, coorY, is_move, actionId):
     global pub_completed
     try:
         navigator = GoToPose()
@@ -96,13 +97,20 @@ def moveToAcoordinate(coorX, coorY, is_move):
         rospy.loginfo("Go to (%s, %s) pose", position['x'], position['y'])
         success = navigator.goto(position, quaternion)
 
+        # construct a return possArray
+        newPoseArray = PoseArray()
+        newPoseArray.poses.append(Pose())
+        newPoseArray.poses[0].orientation.z = actionId;
+
         if success:
             rospy.loginfo("Hooray, reached the desired pose")
-            pub_completed.publish(0)
+            newPoseArray.poses[0].position.z = 0;
+            pub_completed.publish(newPoseArray)
 
         else:
             rospy.loginfo("The base failed to reach the desired pose")
-            pub_completed.publish(-1)
+            newPoseArray.poses[0].position.z = -1;
+            pub_completed.publish(newPoseArray)
 
         # Sleep to give the last log messages time to be sent
         rospy.sleep(1)
@@ -113,7 +121,8 @@ def moveToAcoordinate(coorX, coorY, is_move):
 def start():
     global pub_completed
     rospy.init_node('turtle_goal_publisher', anonymous=False)
-    pub_completed = rospy.Publisher('/turtle_goal_completed', Int16, queue_size=1)
+	#Assigin publisher that publishes the index of the goal just accomplished
+    pub_completed = rospy.Publisher('/turtle_goal_completed', PoseArray, queue_size=1)
     rospy.Subscriber("/list_of_turtle_goals", PoseArray, turtle_action)
     rospy.spin()
 

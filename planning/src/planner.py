@@ -148,45 +148,55 @@ def start():
 
     #Initialize publisher to publish PoseArray
     rospy.init_node('planner')
-
     publisher = rospy.Publisher("/list_of_turtle_goals", PoseArray, queue_size = 1)
-
-    print "Starting to sleep..."
-    time.sleep(5)
-    print "Woke up"
+    time.sleep(2)
+    print "I am ready to move!"
 
     #pub_drone = rospy.Publisher("/list_of_drone_goals", PoseArray, queue_size = 1)
 
     #Subscribe to message published from goal_publisher about the goal accomplished
-    #rospy.Subscriber("/turtle_goal_completed", Int16, turtle_completed)
+    rospy.Subscriber("/turtle_goal_completed", PoseArray, setGoalStatus)
     #Subscribe to message published from goal_publisher about the goal accomplished
     #rospy.Subscriber("/drone_goal_completed", Int16, drone_completed)
     #Sleep for a while to let all nodes Initialize
 
 
     # call to move the turtlebot
-    x = 0.249; y = 0.0049; z = 0
-    x = 0.360; y = -0.49; z = 0
+    x = 0.360; y = -0.49; actionType = 0; actionId = 1
+    x = 0.249; y = 0.0049; actionType = 0; actionId = 2
 
-    moveTurtleBot(x,y,z, publisher)
+    # We check if the TurtleBot reaches the Objective
+    moveTurtleBot(x,y, actionType,actionId, publisher)
+
 
     #This keeps the  active till it is killed
     rospy.spin()
 
-# A method that moves the turtlebot to location x,y,z
+# A method that calls the publishing API and moves bot to location x,y,z
 # x,y are coordinates, z is suppose to be the type of the goal
-def moveTurtleBot(x,y,z, publisher):
+def moveTurtleBot(x,y,actionType, actionId, publisher):
     newPoseArray = PoseArray()
     newPoseArray.header.frame_id = "map"
     newPoseArray.poses.append(Pose())
     newPoseArray.poses[0].position.x = x
     newPoseArray.poses[0].position.y = y
-    newPoseArray.poses[0].position.z = z;
+    newPoseArray.poses[0].position.z = actionType;
+    newPoseArray.poses[0].orientation.z = actionId;
 
     # Publish the new list to the tb_path_publisher
     # to instruct the robot to move
     publisher.publish(newPoseArray)
-# end moveTurtleBot(x,y,z)
+
+
+# This is a function that is calledback by the topic
+def setGoalStatus(data):
+    action_type = data.poses[0].position.z
+    actionId = data.poses[0].orientation.z
+
+    print "action type: ", action_type
+    print "actionId: ", actionId
+
+# end moveTurtleBot(x,y,z,publisher)
 
 
 if __name__ == '__main__':
