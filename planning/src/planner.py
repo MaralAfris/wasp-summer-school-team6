@@ -3,6 +3,7 @@ from geometry_msgs.msg import PoseArray, Pose, PoseStamped
 from actionlib_msgs.msg import GoalStatusArray
 from std_msgs.msg import Int16
 import time
+
 """
 # Arrays that keep information about goals
 turtle_goals = []
@@ -144,9 +145,16 @@ def init_plan():
 def start():
     #global pub_turtle, pub_drone
     #Initialize curnt node with some name
-    rospy.init_node('planner')
+
     #Initialize publisher to publish PoseArray
+    rospy.init_node('planner')
+
     publisher = rospy.Publisher("/list_of_turtle_goals", PoseArray, queue_size = 1)
+
+    print "Starting to sleep..."
+    time.sleep(5)
+    print "Woke up"
+
     #pub_drone = rospy.Publisher("/list_of_drone_goals", PoseArray, queue_size = 1)
 
     #Subscribe to message published from goal_publisher about the goal accomplished
@@ -154,29 +162,32 @@ def start():
     #Subscribe to message published from goal_publisher about the goal accomplished
     #rospy.Subscriber("/drone_goal_completed", Int16, drone_completed)
     #Sleep for a while to let all nodes Initialize
-    print "Starting to sleep..."
-    time.sleep(5)
-    print "Woke up"
-    #Cate an object to new pose array
-    newPoseArray = PoseArray()
-    #assign frame of these pose objects as map
-    newPoseArray.header.frame_id = "map"
-    newPoseArray.poses.append(Pose())
-    newPoseArray.poses[0].position.x = -1.0
-    newPoseArray.poses[0].position.y = 1.0
-    newPoseArray.poses[0].position.z = 0; # the type of the goal
-    #Publish the new list to the tb_path_publisher to instruct the robot
-    publisher.publish(newPoseArray)
 
-    #Init the global plan
-    #init_plan()
-    
-    #Publish initial goals
-    #publish_to_drone_if_allowed()
-    #publish_to_turtle_if_allowed()
+
+    # call to move the turtlebot
+    x = 0.249; y = 0.0049; z = 0
+    x = 0.360; y = -0.49; z = 0
+
+    moveTurtleBot(x,y,z, publisher)
 
     #This keeps the  active till it is killed
     rospy.spin()
+
+# A method that moves the turtlebot to location x,y,z
+# x,y are coordinates, z is suppose to be the type of the goal
+def moveTurtleBot(x,y,z, publisher):
+    newPoseArray = PoseArray()
+    newPoseArray.header.frame_id = "map"
+    newPoseArray.poses.append(Pose())
+    newPoseArray.poses[0].position.x = x
+    newPoseArray.poses[0].position.y = y
+    newPoseArray.poses[0].position.z = z;
+
+    # Publish the new list to the tb_path_publisher
+    # to instruct the robot to move
+    publisher.publish(newPoseArray)
+# end moveTurtleBot(x,y,z)
+
 
 if __name__ == '__main__':
     start()
