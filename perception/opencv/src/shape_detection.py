@@ -140,39 +140,39 @@ class object_detection:
 
 #Calculate coordinates according to picture size and stuff
 def calc_coord(x, y, w, h, source, object):
-        #Image center
-        ctr_x = 239.5
-        ctr_y = 319.5
+    #Image center
+    ctr_x = 239.5
+    ctr_y = 319.5
 
-        #Set focal length
+    #Set focal length
     if source == 'turtlebot':
        focal_leng = 570.34222
     else:
        focal_leng = 570.34222
 
-        #Set properties per object detection type
-        if object == 'person':
-                obj_orig_x = 1
-                obj_orig_y = 2
-                obj_orig_d = 1
-                obj_id = 1
-        elif object == 'medkit':
-                obj_orig_x = 1
-                obj_orig_y = 2
-                obj_orig_d = 1
-                obj_id = 2
-        else:
-                return None
+    #Set properties per object detection type
+    if object == 'person':
+        obj_orig_x = 1
+        obj_orig_y = 2
+        obj_orig_d = 1
+        obj_id = 1
+    elif object == 'medkit':
+        obj_orig_x = 1
+        obj_orig_y = 2
+        obj_orig_d = 1
+        obj_id = 2
+    else:
+        return None
 
     #Calculate distance of object from the camera
-        obj_dist_x = (obj_orig_x * focal_leng) / w
-        obj_dist_y = (obj_orig_x * focal_leng) / h
-        dist = (obj_dist_x + obj_dist_y) / 2
+    obj_dist_x = (obj_orig_x * focal_leng) / w
+    obj_dist_y = (obj_orig_x * focal_leng) / h
+    dist = (obj_dist_x + obj_dist_y) / 2
 
-        #Calculate position of object from the camera
-        obj_mid_x = x + w/2
-        obj_mid_y = y + h/2
-        obj_cam_x = ((obj_mid_x - ctr_x)*dist) / focal_leng
+    #Calculate position of object from the camera
+    obj_mid_x = x + w/2
+    obj_mid_y = y + h/2
+    obj_cam_x = ((obj_mid_x - ctr_x)*dist) / focal_leng
     obj_cam_y = ((obj_mid_x - ctr_y)*dist) / focal_leng
 
     #convert the x,y in camera frame to a geometric stamped point
