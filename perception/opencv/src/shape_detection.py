@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 #'''
 #This source will act as support to finish your project and does not follow best
 #coding practices.
@@ -6,39 +6,20 @@
 #Import Python Packages, ROS messages
 from __future__ import print_function
 from __future__ import division
-import roslib
 import sys
+#import roslib
 import rospy
-import copy
 import cv2
-from std_msgs.msg import String
 from sensor_msgs.msg import CompressedImage
-from cv_bridge import CvBridge, CvBridgeError
+from cv_bridge import CvBridge
 import numpy as np
-import time
 from geometry_msgs.msg import PointStamped
 from sensor_msgs.msg import Image
 #import the custom message we created to store objects
 #from wasp_custom_msgs.msg import object_loc
 import tf
-from math import hypot
 
 import argparse
-
-#This function finds the lengths of all the sides and estimates the longest.
-def Longest_Length(approxcontour):
-    #add the first element in the end to complete the loop
-    approxcontour = np.concatenate((approxcontour,[approxcontour[0]]))
-    #The below lines find the length between two adjacent points
-    #and append them in  an array
-    ptdiff = lambda (p1,p2): (p1[0]-p2[0], p1[1]-p2[1])
-    diffs = map(ptdiff, zip(approxcontour,approxcontour[1:]))
-    dist = []
-    for d in diffs:
-        dist.append(hypot(*d))
-    #find maximum of lengths
-    LongestSide = max(dist)
-    return LongestSide
 
 #This is the main class for object detection, it has some initializations about nodes
 #Call back functions etc
@@ -107,26 +88,6 @@ class object_detection:
                 lower_red_lower = np.array([140, 90, 80])#drone 140,40,80
                 #upper_red_lower = np.array([140, 90,80])#drone 190,200,230
                 upper_red_lower = np.array([190, 240,230])#drone 190,200,230
-
-                lower_green_upper = np.array([0, 120, 65])#drone didn't use
-                #upper_green_upper = np.array([0, 100, 80])#drone didn't use
-                upper_green_upper = np.array([7, 220,220])#drone didn't use
-                lower_green_lower = np.array([140, 90, 80])#drone 140,40,80
-                #upper_green_lower = np.array([140, 90,80])#drone 190,200,230
-                upper_green_lower = np.array([190, 240,230])#drone 190,200,230
-
-                lower_blue_upper = np.array([0, 120, 65])#drone didn't use
-                #upper_blue_upper = np.array([0, 100, 80])#drone didn't use
-                upper_blue_upper = np.array([7, 220,220])#drone didn't use
-                lower_blue_lower = np.array([140, 90, 80])#drone 140,40,80
-                #upper_blue_lower = np.array([140, 90,80])#drone 190,200,230
-                upper_blue_lower = np.array([190, 240,230])#drone 190,200,230
-
-                #original:
-                #lower_blue = np.array([117,75,50])#drone 117,75,50
-                #upper_blue = np.array([127,150,170])#drone 127,150,170
-                #lower_green = np.array([28,62,60])#drone 28,62,60
-                #upper_green = np.array([48,170,170])#drone 48,170,170
             else :
                 lower_red_upper = np.array([0, 120, 90])    #TB 0, 70, 70
                 #upper_red_upper = np.array([0, 120, 90])  #   TB 7, 220 200
@@ -134,40 +95,6 @@ class object_detection:
                 lower_red_lower = np.array([140, 90, 60])#TB 140, 30, 30
                 #upper_red_lower = np.array([140, 30, 30])#TB 255, 230,150
                 upper_red_lower = np.array([255, 240,130])#TB 255, 230,150
-
-                lower_green_upper = np.array([0, 120, 90])#drone didn't use
-                #upper_green_upper = np.array([0, 120, 90])#drone didn't use
-                upper_green_upper = np.array([7, 200, 200])#drone didn't use
-                lower_green_lower = np.array([140, 90, 60])#drone 140,40,80
-                #upper_green_lower = np.array([140, 30, 30])#drone 190,200,230
-                upper_green_lower = np.array([255, 240,130])#drone 190,200,230
-
-                lower_blue_upper = np.array([0, 120, 90])#drone didn't use
-                #upper_blue_upper = np.array([0, 120, 90])#drone didn't use
-                upper_blue_upper = np.array([7, 200, 200])#drone didn't use
-                lower_blue_lower = np.array([140, 90, 60])#drone 140,40,80
-                #upper_blue_lower = np.array([140, 30, 30])#drone 190,200,230
-                upper_blue_lower = np.array([255, 240,130])#drone 190,200,230
-
-                #original
-                lower_blue = np.array([117,75,50])#TB 117,75,50
-                upper_blue = np.array([127,150,170])#TB 127,150,170
-                lower_green = np.array([28,62,60])#TB 28,62,60
-                upper_green = np.array([48,170,170])#TB 48,170,170
-
-            greenMask_upper = cv2.inRange(hsv, lower_green_upper, upper_green_upper)
-            greenMask_lower = cv2.inRange(hsv, lower_green_lower, upper_green_lower)
-            greenMask = cv2.bitwise_or(greenMask_upper, greenMask_lower)
-            #greenMask = cv2.inRange(hsv, lower_green, upper_green)
-            green_cv_image = cv2.bitwise_and(img_original, img_original, mask=greenMask)
-            #cv_image_gray_green = cv2.cvtColor(green_cv_image, cv2.COLOR_BGR2GRAY)
-
-            blueMask_upper = cv2.inRange(hsv, lower_blue_upper, upper_blue_upper)
-            blueMask_lower = cv2.inRange(hsv, lower_blue_lower, upper_blue_lower)
-            blueMask = cv2.bitwise_or(blueMask_upper, blueMask_lower)
-            #blueMask = cv2.inRange(hsv, lower_blue, upper_blue)
-            blue_cv_image = cv2.bitwise_and(img_original, img_original, mask=blueMask)
-            #cv_image_gray_blue = cv2.cvtColor(blue_cv_image, cv2.COLOR_BGR2GRAY)
 
             # Threshold the HSV image to get only single color portions
             redMask_upper = cv2.inRange(hsv, lower_red_upper, upper_red_upper)
@@ -190,11 +117,11 @@ class object_detection:
             locMedBoxLarge = np.where(medBoxLargeMatchingResult >=thresholdMedBoxLarge)
             for pt in zip (*locMedBoxSmall[::-1]):
                 print('found Medical Kit far away!!')
-                self.calc_coord(pt[0], pt[1], wRedBoy, hRedBoy, 'medkit')
+                self.calc_coord(pt[0], pt[1], wMedBoxSmall, hMedBoxSmall, 'medkit')
                 cv2.rectangle(img_for_presentation, pt, (pt[0]+wMedBoxSmall, pt[1]+hMedBoxSmall), (0,255,255), 2)
             for pt in zip (*locMedBoxLarge[::-1]):
                 print('found Medical Kit near!!')
-                self.calc_coord(pt[0], pt[1], wRedBoy, hRedBoy, 'medkit')
+                self.calc_coord(pt[0], pt[1], wMedBoxLarge, hMedBoxLarge, 'medkit')
                 cv2.rectangle(img_for_presentation, pt, (pt[0]+wMedBoxLarge, pt[1]+hMedBoxSmall), (50,200,200), 2)
             #Display the captured image
 
@@ -221,13 +148,13 @@ class object_detection:
         if obj == 'medkit':
             obj_orig_w = 17.5 #cm
             obj_orig_h = 17.5 #cm
-            obj_orig_d = 1 #cm
-            obj_id = 1
+            #obj_orig_d = 1 #cm
+            #obj_id = 1
         elif obj == 'person':
             obj_orig_w = 10 #cm
             obj_orig_h = 26 #cm
-            obj_orig_d = 1 #cm
-            obj_id = 2
+            #obj_orig_d = 1 #cm
+            #obj_id = 2
         else:
             return None
 
@@ -240,7 +167,7 @@ class object_detection:
         obj_mid_x = x + w/2
         obj_mid_y = y + h/2
         obj_cam_x = ((obj_mid_x - ctr_x)*dist) / focal_leng
-        obj_cam_y = ((obj_mid_x - ctr_y)*dist) / focal_leng
+        obj_cam_y = ((obj_mid_y - ctr_y)*dist) / focal_leng
         print('Drone:%d dist:%dcm (x:%d,y:%d), cam:x:%d,y:%d' %(self.modeIsDrone,
               dist, obj_dist_x, obj_dist_y, obj_cam_x, obj_cam_y))
 
@@ -301,7 +228,7 @@ def main(args):
     print('Starting OpenCV object detection !')
     rospy.init_node('object_detection', anonymous = False)
     print('ROS node initialized !')
-    ic = object_detection(args)
+    object_detection(args)
     print('Object detection class created !')
     try:
         print('Spin !')
