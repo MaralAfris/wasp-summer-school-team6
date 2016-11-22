@@ -75,6 +75,7 @@ class object_detection:
             gray = cv2.cvtColor(img_original, cv2.COLOR_BGR2GRAY)
             bodies = self.body_cascade.detectMultiScale(gray,1.3,5)
             for (x,y,w,h) in bodies:
+                print('Found a person!')
                 self.calc_coord(w, h, w, h, 'person')
                 cv2.rectangle(img_for_presentation, (x,y), (x+w, y+h), (255,0,0), 2)
 
@@ -92,10 +93,10 @@ class object_detection:
             else :
                 lower_red_upper = np.array([0, 120, 90])    #TB 0, 70, 70
                 #upper_red_upper = np.array([0, 120, 90])  #   TB 7, 220 200
-                upper_red_upper = np.array([7, 200, 200])  #   TB 7, 220 200
+                upper_red_upper = np.array([7, 255, 255])  #   TB 7, 220 200
                 lower_red_lower = np.array([140, 90, 60])#TB 140, 30, 30
                 #upper_red_lower = np.array([140, 30, 30])#TB 255, 230,150
-                upper_red_lower = np.array([255, 240,130])#TB 255, 230,150
+                upper_red_lower = np.array([255, 240,255])#TB 255, 230,150
 
             # Threshold the HSV image to get only single color portions
             redMask_upper = cv2.inRange(hsv, lower_red_upper, upper_red_upper)
@@ -113,7 +114,7 @@ class object_detection:
                 thresholdMedBoxLarge = 0.25
             else :
                 thresholdMedBoxSmall = 0.25
-                thresholdMedBoxLarge = 0.22
+                thresholdMedBoxLarge = 0.25
             locMedBoxSmall = np.where(medBoxSmallMatchingResult >=thresholdMedBoxSmall)
             locMedBoxLarge = np.where(medBoxLargeMatchingResult >=thresholdMedBoxLarge)
             for pt in zip (*locMedBoxSmall[::-1]):
@@ -130,6 +131,7 @@ class object_detection:
             #cv2.imshow("Blue screen",blue_cv_image)
             #cv2.imshow("Green screen",green_cv_image)
             cv2.imshow("img",img_for_presentation)
+            cv2.imshow("red",red_cv_image)
             cv2.waitKey(1)
 
     #Calculate coordinates according to picture size and stuff
