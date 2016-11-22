@@ -154,22 +154,22 @@ class object_detection:
             focal_leng = 570.34222
 
         #Set properties per object detection type
-        if obj == 'person':
-            obj_orig_x = 1
-            obj_orig_y = 2
-            obj_orig_d = 1
+        if obj == 'medkit':
+            obj_orig_w = 17.5 #cm
+            obj_orig_h = 17.5 #cm
+            obj_orig_d = 1 #cm
             obj_id = 1
-        elif obj == 'medkit':
-            obj_orig_x = 1
-            obj_orig_y = 2
-            obj_orig_d = 1
+        elif obj == 'person':
+            obj_orig_w = 10 #cm
+            obj_orig_h = 26 #cm
+            obj_orig_d = 1 #cm
             obj_id = 2
         else:
             return None
 
         #Calculate distance of object from the camera
-        obj_dist_x = (obj_orig_x * focal_leng) / w
-        obj_dist_y = (obj_orig_x * focal_leng) / h
+        obj_dist_x = (obj_orig_w * focal_leng) / w
+        obj_dist_y = (obj_orig_h * focal_leng) / h
         dist = (obj_dist_x + obj_dist_y) / 2
 
         #Calculate position of object from the camera
@@ -177,7 +177,7 @@ class object_detection:
         obj_mid_y = y + h/2
         obj_cam_x = ((obj_mid_x - ctr_x)*dist) / focal_leng
         obj_cam_y = ((obj_mid_x - ctr_y)*dist) / focal_leng
-        print('Drone:%d position: dist:%d(x:%d,y:%d), cam:x:%d,y:%d' %(self.modeIsDrone,
+        print('Drone:%d dist:%dcm (x:%d,y:%d), cam:x:%d,y:%d' %(self.modeIsDrone,
               dist, obj_dist_x, obj_dist_y, obj_cam_x, obj_cam_y))
 
         #convert the x,y in camera frame to a geometric stamped point
