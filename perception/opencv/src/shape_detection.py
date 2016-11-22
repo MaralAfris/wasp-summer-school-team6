@@ -71,71 +71,72 @@ class object_detection:
 
         self.body_cascade = cv2.CascadeClassifier('haarcascade_fullbody.xml')
         self.jumpOver = 1
+
     #Callback function for subscribed image
     def callback(self,data):
-      self.jumpOver=self.jumpOver+1
-      self.jumpOver=self.jumpOver%20
-      if self.jumpOver==1:
-        np_arr = np.fromstring(data.data, np.uint8)
-        #The following is no longer named CV_LOAD_IMAGE_COLOR but CV_LOAD_COLOR. Works by defining it instead
-        cv2.CV_LOAD_IMAGE_COLOR = 1
-        img_for_presentation = cv2.imdecode(np_arr, cv2.CV_LOAD_IMAGE_COLOR)
-        img_original = cv2.copyMakeBorder(img_for_presentation,0,0,0,0,cv2.BORDER_REPLICATE)
-        #cv_image = self.bridge.imgmsg_to_cv2(data, 'bgr8')
-        #Create copy of captured image
-        #img_cpy = cv_image.copy()
-        #Color to HSV and Gray Scale conversion
-        hsv = cv2.cvtColor(img_original, cv2.COLOR_BGR2HSV)
+        self.jumpOver=self.jumpOver+1
+        self.jumpOver=self.jumpOver%20
+        if self.jumpOver==1:
+            np_arr = np.fromstring(data.data, np.uint8)
+            #The following is no longer named CV_LOAD_IMAGE_COLOR but CV_LOAD_COLOR. Works by defining it instead
+            cv2.CV_LOAD_IMAGE_COLOR = 1
+            img_for_presentation = cv2.imdecode(np_arr, cv2.CV_LOAD_IMAGE_COLOR)
+            img_original = cv2.copyMakeBorder(img_for_presentation,0,0,0,0,cv2.BORDER_REPLICATE)
+            #cv_image = self.bridge.imgmsg_to_cv2(data, 'bgr8')
+            #Create copy of captured image
+            #img_cpy = cv_image.copy()
+            #Color to HSV and Gray Scale conversion
+            hsv = cv2.cvtColor(img_original, cv2.COLOR_BGR2HSV)
 
-        #img = cv_image
-        gray = cv2.cvtColor(img_original, cv2.COLOR_BGR2GRAY)
-        bodies = self.body_cascade.detectMultiScale(gray,1.3,5)
-        for (x,y,w,h) in bodies:
-            cv2.rectangle(img_for_presentation, (x,y), (x+w, y+h), (255,0,0), 2)
+            #img = cv_image
+            gray = cv2.cvtColor(img_original, cv2.COLOR_BGR2GRAY)
+            bodies = self.body_cascade.detectMultiScale(gray,1.3,5)
+            for (x,y,w,h) in bodies:
+                cv2.rectangle(img_for_presentation, (x,y), (x+w, y+h), (255,0,0), 2)
 
-        #Thresholds
-        # worked with one video for TB, but not the other:
-        # 0-7 70-220 70-250
-        # 190-255 20-255 20-255
-        if(self.modeIsDrone):
-            lower_red_upper = np.array([0, 70, 70])#drone didn't use
-            upper_red_upper = np.array([7, 220,200])#drone didn't use
-            lower_red_lower = np.array([140, 40, 80])#drone 140,40,80
-            upper_red_lower = np.array([190, 200,230])#drone 190,200,230
-            lower_blue = np.array([117,75,50])#drone 117,75,50
-            upper_blue = np.array([127,150,170])#drone 127,150,170
-            lower_green = np.array([28,62,60])#drone 28,62,60
-            upper_green = np.array([48,170,170])#drone 48,170,170
-        else :
-            lower_red_upper = np.array([0, 70, 70])    #TB 0, 70, 70
-            upper_red_upper = np.array([7, 220, 200])
-            #   TB 7, 220 200
-            lower_red_lower = np.array([140, 30, 30])#TB 140, 30, 30
-            upper_red_lower = np.array([255, 230,150])#TB 255, 230,150
-            lower_blue = np.array([117,75,50])#TB 117,75,50
-            upper_blue = np.array([127,150,170])#TB 127,150,170
-            lower_green = np.array([28,62,60])#TB 28,62,60
-            upper_green = np.array([48,170,170])#TB 48,170,170
+            #Thresholds
+            # worked with one video for TB, but not the other:
+            # 0-7 70-220 70-250
+            # 190-255 20-255 20-255
+            if(self.modeIsDrone):
+                lower_red_upper = np.array([0, 70, 70])#drone didn't use
+                upper_red_upper = np.array([7, 220,200])#drone didn't use
+                lower_red_lower = np.array([140, 40, 80])#drone 140,40,80
+                upper_red_lower = np.array([190, 200,230])#drone 190,200,230
+                lower_blue = np.array([117,75,50])#drone 117,75,50
+                upper_blue = np.array([127,150,170])#drone 127,150,170
+                lower_green = np.array([28,62,60])#drone 28,62,60
+                upper_green = np.array([48,170,170])#drone 48,170,170
+            else :
+                lower_red_upper = np.array([0, 70, 70])    #TB 0, 70, 70
+                upper_red_upper = np.array([7, 220, 200])
+                #   TB 7, 220 200
+                lower_red_lower = np.array([140, 30, 30])#TB 140, 30, 30
+                upper_red_lower = np.array([255, 230,150])#TB 255, 230,150
+                lower_blue = np.array([117,75,50])#TB 117,75,50
+                upper_blue = np.array([127,150,170])#TB 127,150,170
+                lower_green = np.array([28,62,60])#TB 28,62,60
+                upper_green = np.array([48,170,170])#TB 48,170,170
 
-        # Threshold the HSV image to get only single color portions
-        redMask_upper = cv2.inRange(hsv, lower_red_upper, upper_red_upper)
-        redMask_lower = cv2.inRange(hsv, lower_red_lower, upper_red_lower)
-        redMask = cv2.bitwise_or(redMask_upper, redMask_lower)
+            # Threshold the HSV image to get only single color portions
+            redMask_upper = cv2.inRange(hsv, lower_red_upper, upper_red_upper)
+            redMask_lower = cv2.inRange(hsv, lower_red_lower, upper_red_lower)
+            redMask = cv2.bitwise_or(redMask_upper, redMask_lower)
 
-        red_cv_image = cv2.bitwise_and(img_original, img_original, mask=redMask)
-        cv_image_gray = cv2.cvtColor(red_cv_image, cv2.COLOR_BGR2GRAY)
-        wRedBoy, hRedBoy = self.grayRedBoy.shape[::-1]
-        redBoyMatchingResult=cv2.matchTemplate(cv_image_gray, self.grayRedBoy, cv2.TM_CCOEFF_NORMED)
-        threshold = 0.3#0.4 for drone
-        locRedBoy = np.where(redBoyMatchingResult >=threshold)
-        for pt in zip (*locRedBoy[::-1]):
-            print('found Medical Kit!!')
-            cv2.rectangle(img_for_presentation, pt, (pt[0]+wRedBoy, pt[1]+hRedBoy), (0,255,255), 2)
+            red_cv_image = cv2.bitwise_and(img_original, img_original, mask=redMask)
+            cv_image_gray = cv2.cvtColor(red_cv_image, cv2.COLOR_BGR2GRAY)
+            wRedBoy, hRedBoy = self.grayRedBoy.shape[::-1]
+            redBoyMatchingResult=cv2.matchTemplate(cv_image_gray, self.grayRedBoy, cv2.TM_CCOEFF_NORMED)
+            threshold = 0.3#0.4 for drone
+            locRedBoy = np.where(redBoyMatchingResult >=threshold)
+            for pt in zip (*locRedBoy[::-1]):
+                print('found Medical Kit!!')
+                cv2.rectangle(img_for_presentation, pt, (pt[0]+wRedBoy, pt[1]+hRedBoy), (0,255,255), 2)
 
-        #Display the captured image
-        cv2.imshow("img",img_for_presentation)
-        cv2.imshow("Red screen",red_cv_image)
-        cv2.waitKey(1)
+            #Display the captured image
+            cv2.imshow("img",img_for_presentation)
+            cv2.imshow("Red screen",red_cv_image)
+            cv2.waitKey(1)
 
 
 #Calculate coordinates according to picture size and stuff
@@ -151,12 +152,12 @@ def calc_coord(x, y, w, h, source, object):
        focal_leng = 570.34222
 
     #Set properties per object detection type
-    if object == 'person':
+    if obj == 'person':
         obj_orig_x = 1
         obj_orig_y = 2
         obj_orig_d = 1
         obj_id = 1
-    elif object == 'medkit':
+    elif obj == 'medkit':
         obj_orig_x = 1
         obj_orig_y = 2
         obj_orig_d = 1
