@@ -131,6 +131,7 @@ class object_detection:
             locRedBoy = np.where(redBoyMatchingResult >=threshold)
             for pt in zip (*locRedBoy[::-1]):
                 print('found Medical Kit!!')
+                self.calc_coord(pt[0], pt[1], wRedBoy, hRedBoy, 'medkit')
                 cv2.rectangle(img_for_presentation, pt, (pt[0]+wRedBoy, pt[1]+hRedBoy), (0,255,255), 2)
 
             #Display the captured image
@@ -139,64 +140,66 @@ class object_detection:
             cv2.waitKey(1)
 
 
-#Calculate coordinates according to picture size and stuff
-def calc_coord(x, y, w, h, source, object):
-    #Image center
-    ctr_x = 239.5
-    ctr_y = 319.5
+    #Calculate coordinates according to picture size and stuff
+    def calc_coord(self, x, y, w, h, obj):
+        print('Received: x:%d y:%d w:%d h:%d obj:%s' %(x, y, w, h, obj))
+        #Image center
+        ctr_x = 239.5
+        ctr_y = 319.5
 
-    #Set focal length
-    if source == 'turtlebot':
-       focal_leng = 570.34222
-    else:
-       focal_leng = 570.34222
+        #Set focal length
+        if self.modeIsDrone:
+            focal_leng = 570.34222
+        else:
+            focal_leng = 570.34222
 
-    #Set properties per object detection type
-    if obj == 'person':
-        obj_orig_x = 1
-        obj_orig_y = 2
-        obj_orig_d = 1
-        obj_id = 1
-    elif obj == 'medkit':
-        obj_orig_x = 1
-        obj_orig_y = 2
-        obj_orig_d = 1
-        obj_id = 2
-    else:
-        return None
+        #Set properties per object detection type
+        if obj == 'person':
+            obj_orig_x = 1
+            obj_orig_y = 2
+            obj_orig_d = 1
+            obj_id = 1
+        elif obj == 'medkit':
+            obj_orig_x = 1
+            obj_orig_y = 2
+            obj_orig_d = 1
+            obj_id = 2
+        else:
+            return None
 
-    #Calculate distance of object from the camera
-    obj_dist_x = (obj_orig_x * focal_leng) / w
-    obj_dist_y = (obj_orig_x * focal_leng) / h
-    dist = (obj_dist_x + obj_dist_y) / 2
+        #Calculate distance of object from the camera
+        obj_dist_x = (obj_orig_x * focal_leng) / w
+        obj_dist_y = (obj_orig_x * focal_leng) / h
+        dist = (obj_dist_x + obj_dist_y) / 2
 
-    #Calculate position of object from the camera
-    obj_mid_x = x + w/2
-    obj_mid_y = y + h/2
-    obj_cam_x = ((obj_mid_x - ctr_x)*dist) / focal_leng
-    obj_cam_y = ((obj_mid_x - ctr_y)*dist) / focal_leng
+        #Calculate position of object from the camera
+        obj_mid_x = x + w/2
+        obj_mid_y = y + h/2
+        obj_cam_x = ((obj_mid_x - ctr_x)*dist) / focal_leng
+        obj_cam_y = ((obj_mid_x - ctr_y)*dist) / focal_leng
+        print('Drone:%d position: dist:%d(x:%d,y:%d), cam:x:%d,y:%d' %(self.modeIsDrone,
+              dist, obj_dist_x, obj_dist_y, obj_cam_x, obj_cam_y))
 
-    #convert the x,y in camera frame to a geometric stamped point
-    P = PointStamped()
-    P.header.stamp = rospy.Time.now() - rospy.Time(23)
-    print ('time: ', data.header.stamp)
-    P.header.frame_id = 'camera_rgb_optical_frame'
-    P.point.x = obj_cam_x
-    P.point.y = obj_cam_y
-    P.point.z = dist
+        #convert the x,y in camera frame to a geometric stamped point
+        P = PointStamped()
+        P.header.stamp = rospy.Time.now() - rospy.Time(23)
+        P.header.frame_id = 'camera_rgb_optical_frame'
+        P.point.x = obj_cam_x
+        P.point.y = obj_cam_y
+        P.point.z = dist
 
-    #Transform Point into map coordinates
-    trans_pt = self.tl.transformPoint('/map', P)
+        #Transform Point into map coordinates
+        #trans_pt = self.tl.transformPoint('/map', P)
 
-    #Fill in the publisher object to publish
-    obj_info_pub = object_loc()
-    obj_info_pub.ID = obj_id
-    obj_info_pub.point.x = trans_pt.point.x
-    obj_info_pub.point.y = trans_pt.point.y
-    obj_info_pub.point.z = trans_pt.point.z
+        #Fill in the publisher object to publish
+        #obj_info_pub = object_loc()
+        #obj_info_pub.ID = obj_id
+        #obj_info_pub.point.x = trans_pt.point.x
+        #obj_info_pub.point.y = trans_pt.point.y
+        #obj_info_pub.point.z = trans_pt.point.z
 
-    #Publish the message
-    self.object_location_pub.publish(obj_info_pub)
+        #Publish the message
+        #self.object_location_pub.publish(obj_info_pub)
 
 #Check validity of the mode argument provided
 def check_mode(v):
