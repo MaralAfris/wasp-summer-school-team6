@@ -207,42 +207,49 @@ class object_detection:
 
 #Calculate coordinates according to picture size and stuff
 def calc_coord(x, y, w, h, source):
-    """
     if source == 'turtlebot':
         focal_leng = 570.34222
         square_side_lenth = 0.115 #in mts
     else:
         focal_leng = 570.34222
         square_side_lenth = 0.115 #in mts
+        
+#def calc_coord(x, y, w, h, source):
+    #if source == 'turtlebot':
+    #    focal_leng = 570.34222
+    #    square_side_lenth = 0.115 #in mts
+    #else:
+    #    focal_leng = 570.34222
+    #    square_side_lenth = 0.115 #in mts
 
     #Calculate Cordinates wrt to Camera, convert to Map
     #Coordinates and publish message for storing
     #319.5, 239.5 = image centre
-    obj_cam_x = ((obj_x - 319.5)*Distance)/self.focal_leng
-    obj_cam_y = ((obj_y - 239.5)*Distance)/self.focal_leng
+    #obj_cam_x = ((obj_x - 319.5)*Distance)/self.focal_leng
+    #obj_cam_y = ((obj_y - 239.5)*Distance)/self.focal_leng
 
     #convert the x,y in camera frame to a geometric stamped point
-    P = PointStamped()
-    P.header.stamp = rospy.Time.now() - rospy.Time(23)
+    #P = PointStamped()
+    #P.header.stamp = rospy.Time.now() - rospy.Time(23)
     #print ('time: ', data.header.stamp)
-    P.header.frame_id = 'camera_rgb_optical_frame'
-    P.point.x = obj_cam_x
-    P.point.y = obj_cam_y
-    P.point.z = Distance
+    #P.header.frame_id = 'camera_rgb_optical_frame'
+    #P.point.x = obj_cam_x
+    #P.point.y = obj_cam_y
+    #P.point.z = Distance
 
     #Transform Point into map coordinates
-    trans_pt = self.tl.transformPoint('/map', P)
+    #trans_pt = self.tl.transformPoint('/map', P)
 
     #fill in the publisher object to publish
-    obj_info_pub = object_loc()
-    obj_info_pub.ID = 27 #ID need to be changed
-    obj_info_pub.point.x = trans_pt.point.x
-    obj_info_pub.point.y = trans_pt.point.y
-    obj_info_pub.point.z = trans_pt.point.z
+    #obj_info_pub = object_loc()
+    #obj_info_pub.ID = 27 #ID need to be changed
+    #obj_info_pub.point.x = trans_pt.point.x
+    #obj_info_pub.point.y = trans_pt.point.y
+    #obj_info_pub.point.z = trans_pt.point.z
 
     #publish the message
-    self.object_location_pub.publish(obj_info_pub)
-    """
+    #self.object_location_pub.publish(obj_info_pub)
+
 
 #Check validity of the mode argument provided
 def check_mode(v):
