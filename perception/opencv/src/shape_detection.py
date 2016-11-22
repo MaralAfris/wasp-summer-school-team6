@@ -75,6 +75,7 @@ class object_detection:
             gray = cv2.cvtColor(img_original, cv2.COLOR_BGR2GRAY)
             bodies = self.body_cascade.detectMultiScale(gray,1.3,5)
             for (x,y,w,h) in bodies:
+                self.calc_coord(w, h, w, h, 'person')
                 cv2.rectangle(img_for_presentation, (x,y), (x+w, y+h), (255,0,0), 2)
 
             #Thresholds
