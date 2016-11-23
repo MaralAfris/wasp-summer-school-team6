@@ -16,7 +16,7 @@ import numpy as np
 from geometry_msgs.msg import PointStamped
 from sensor_msgs.msg import Image
 #import the custom message we created to store objects
-#from wasp_custom_msgs.msg import object_loc
+from wasp_custom_msgs.msg import object_loc
 import tf
 
 import argparse
@@ -26,7 +26,7 @@ import argparse
 class object_detection:
     def __init__(self, args):
         #Create Rospy Publisher and subscriber
-        #self.object_location_pub = rospy.Publisher('/object_location', object_loc, queue_size =1)
+        self.object_location_pub = rospy.Publisher('/object_location', object_loc, queue_size =1)
 
         #Get image from turtlebot/drones...
         source = Image
@@ -152,17 +152,17 @@ class object_detection:
             obj_orig_w = 17.5 #cm
             obj_orig_h = 17.5 #cm
             #obj_orig_d = 1 #cm
-            #obj_id = 1
+            obj_id = 1
         if obj == 'medkit_far':
             obj_orig_w = 17.5 #cm
             obj_orig_h = 17.5 #cm
             #obj_orig_d = 1 #cm
-            #obj_id = 1
+            obj_id = 1
         elif obj == 'person':
             obj_orig_w = 10 #cm
             obj_orig_h = 26 #cm
             #obj_orig_d = 1 #cm
-            #obj_id = 2
+            obj_id = 2
         else:
             return None
 
@@ -181,24 +181,24 @@ class object_detection:
 
         #convert the x,y in camera frame to a geometric stamped point
         P = PointStamped()
-        P.header.stamp = rospy.Time.now() - rospy.Time(23)
+        P.header.stamp = rospy.Time(0)
         P.header.frame_id = 'camera_rgb_optical_frame'
         P.point.x = obj_cam_x
         P.point.y = obj_cam_y
         P.point.z = dist
 
         #Transform Point into map coordinates
-        #trans_pt = self.tl.transformPoint('/map', P)
+        trans_pt = self.tl.transformPoint('/map', P)
 
         #Fill in the publisher object to publish
-        #obj_info_pub = object_loc()
-        #obj_info_pub.ID = obj_id
-        #obj_info_pub.point.x = trans_pt.point.x
-        #obj_info_pub.point.y = trans_pt.point.y
-        #obj_info_pub.point.z = trans_pt.point.z
+        obj_info_pub = object_loc()
+        obj_info_pub.ID = obj_id
+        obj_info_pub.point.x = trans_pt.point.x
+        obj_info_pub.point.y = trans_pt.point.y
+        obj_info_pub.point.z = trans_pt.point.z
 
         #Publish the message
-        #self.object_location_pub.publish(obj_info_pub)
+        self.object_location_pub.publish(obj_info_pub)
 
 
 #Check validity of the mode argument provided
