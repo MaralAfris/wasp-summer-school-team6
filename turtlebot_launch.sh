@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #Force killing children when exiting
-trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
+trap "trap - SIGTERM && kill -- -$$" INT TERM EXIT
 
 #Minimal launch
 echo "ROS minimal launch"
