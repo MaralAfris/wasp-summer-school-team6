@@ -119,11 +119,11 @@ class object_detection:
             locMedBoxLarge = np.where(medBoxLargeMatchingResult >=thresholdMedBoxLarge)
             for pt in zip (*locMedBoxSmall[::-1]):
                 print('found Medical Kit far away!!')
-                self.calc_coord(pt[0], pt[1], wMedBoxSmall, hMedBoxSmall, 'medkit')
+                self.calc_coord(pt[0], pt[1], wMedBoxSmall, hMedBoxSmall, 'medkit_far')
                 cv2.rectangle(img_for_presentation, pt, (pt[0]+wMedBoxSmall, pt[1]+hMedBoxSmall), (0,255,255), 2)
             for pt in zip (*locMedBoxLarge[::-1]):
                 print('found Medical Kit near!!')
-                self.calc_coord(pt[0], pt[1], wMedBoxLarge, hMedBoxLarge, 'medkit')
+                self.calc_coord(pt[0], pt[1], wMedBoxLarge, hMedBoxLarge, 'medkit_near')
                 cv2.rectangle(img_for_presentation, pt, (pt[0]+wMedBoxLarge, pt[1]+hMedBoxSmall), (50,200,200), 2)
             #Display the captured image
 
@@ -148,7 +148,12 @@ class object_detection:
             focal_leng = 570.34222
 
         #Set properties per object detection type
-        if obj == 'medkit':
+        if obj == 'medkit_near':
+            obj_orig_w = 17.5 #cm
+            obj_orig_h = 17.5 #cm
+            #obj_orig_d = 1 #cm
+            #obj_id = 1
+        if obj == 'medkit_far':
             obj_orig_w = 17.5 #cm
             obj_orig_h = 17.5 #cm
             #obj_orig_d = 1 #cm
