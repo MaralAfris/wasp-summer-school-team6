@@ -178,7 +178,7 @@ class object_detection:
         #Calculate distance of object from the camera
         obj_dist_x = (obj_orig_w * focal_leng) / w
         obj_dist_y = (obj_orig_h * focal_leng) / h
-        dist = (obj_dist_x + obj_dist_y) / 2
+        dist = min(obj_dist_x, obj_dist_y) #The minimal value should be the correct one
 
         #Calculate position of object from the camera
         obj_mid_x = x + w/2
