@@ -96,6 +96,7 @@ def moveToAcoordinate(coorX, coorY, is_move, actionId):
             quaternion = {'r1' : 0.000, 'r2' : 0.000, 'r3' : 0.000, 'r4' : -1.000}
 
         rospy.loginfo("Go to (%s, %s) pose", position['x'], position['y'])
+        
         success = navigator.goto(position, quaternion)
 
         # construct a return possArray
