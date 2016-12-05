@@ -1,6 +1,7 @@
 import sys,re
 from world import World, Box, Agent, Person, Waypoint
 import settings
+from coordinator import *
 
 def parse_plan(plan_file, world):
     actions = []
@@ -135,6 +136,13 @@ class Move(Action):
         self.agent.location = self.to
         self.completed = True
 
+    def execute(self, turtlebot_publisher, drone_publisher):
+        x,y = self.to.point
+        if self.agent.agent_type == "turtlebot":
+            moveTurtleBot(x, y, 0, self.index, turtlebot_publisher)
+        else:
+            moveTurtleBot(x, y, 0, self.index, drone_publisher)
+
 class Deliver(Action):
     def __init__(self, args, duration, world):
         super(Deliver, self).__init__(args, duration, world)
@@ -149,6 +157,10 @@ class Deliver(Action):
         self.person.handled = True
         self.completed = True
 
+    def execute(self, turtlebot_publisher, drone_publisher):
+        # TODO impement me!
+        pass
+
 class PickUp(Action):
     def __init__(self, args, duration, world):
         super(PickUp, self).__init__(args, duration, world)
@@ -160,6 +172,10 @@ class PickUp(Action):
         self.box.location = None
         self.box.free = False
         self.completed = True
+
+    def execute(self, publisher,drone_publisher):
+        # TODO impement me!
+        pass
 
 class HandOver(Action):
     def __init__(self, args, duration, world):
@@ -173,8 +189,12 @@ class HandOver(Action):
         self.drone.carrying = None
         self.completed = True
 
+    def execute(self, publisher,drone_publisher):
+        # TODO impement me!
+        pass
+
 # Delays simulate the time it takes turtlebot/drone to generate new path.
-# We dont use this action during actual planning, but instead add it to 
+# We dont use this action during actual planning, but instead add it to
 # move cost, otherwise planning would be more complex.
 # This action is only used during simulation.
 class Delay(Action):

@@ -4,6 +4,7 @@ import settings
 from world import *
 from action import *
 from map import *
+import coordinator
 
 import subprocess,os,sys,inspect
 import inspect, os
@@ -33,9 +34,9 @@ def generate_plan(world, map):
             break
 
     if settings.plan['optimal_search'] > 0:
-        print("info: running optimal planning with yahsp3 for " + 
+        print("info: running optimal planning with yahsp3 for " +
             str(settings.plan['optimal_search']) + " secs.")
-        out = subprocess.call('yahsp3 -v 0 -K 0.01,0.01 -t ' + str(settings.plan['optimal_search']) + 
+        out = subprocess.call('yahsp3 -v 0 -K 0.01,0.01 -t ' + str(settings.plan['optimal_search']) +
                 ' -o ' + domain_file + ' -f ' + PROBLEM + ' -H ' + PLAN, shell = True)
     else:
         out = -1
@@ -45,9 +46,9 @@ def generate_plan(world, map):
     if out != 0:
         if settings.plan['optimal_search'] > 0:
             print("info: failed to find optimal plan [" + str(out) + "]")
-        print("info: running heuristic suboptimal planning with yahsp3 for " + 
+        print("info: running heuristic suboptimal planning with yahsp3 for " +
                 str(settings.plan['suboptimal_search']) + " secs.")
-        out = subprocess.call('yahsp3 -N -y 1 -v 0 -K 0.01,0.01 -t ' + 
+        out = subprocess.call('yahsp3 -N -y 1 -v 0 -K 0.01,0.01 -t ' +
                 str(settings.plan['suboptimal_search']) + ' -o ' + domain_file + ' -f ' +
                 PROBLEM + ' -H ' + PLAN + " > /dev/null", shell = True)
         # search for latest plan in the list
@@ -66,7 +67,7 @@ def generate_plan(world, map):
     return planner_file
 
 if __name__ == "__main__":
-    
+
     use_old = False
     if len(sys.argv) > 1:
         print("info: using old plan")
@@ -90,14 +91,5 @@ if __name__ == "__main__":
 
     actions = parse_plan(planner_file, world)
     graph = construct_graph(actions, world)
-    for a in actions:
-        print(a.format())
 
-    world.to_json('_before.json')
-
-    # Execute some actions for funsies
-    for action in graph.succ:
-        action.complete_action()
-
-    world.to_json('_after.json')
-
+    coordinator.start(graph, actions)
