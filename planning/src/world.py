@@ -111,7 +111,6 @@ class World(object):
         waypoints.sort(key=lambda waypoint: waypoint.name)
 
         obj = cls(agents, waypoints, boxes, persons)
-        obj.to_json('test.json')
         return obj
 
     def points(self):
