@@ -1,0 +1,12 @@
+{
+	"agents": [
+		{"name":"turtle1","agent_type":"turtlebot","location":[-0.8,-1.6]},
+		{"name":"drone1","agent_type":"drone","location":[0.6,0.6]}
+	],
+	"boxes": [
+		{"name":"box1","location":[0,-2.1],"free":true}
+	],
+	"persons": [
+		{"name":"person1","location":[1.0,-5.6],"handled":false}
+	]
+}
