@@ -158,8 +158,11 @@ class Deliver(Action):
         self.completed = True
 
     def execute(self, turtlebot_publisher, drone_publisher):
-        # TODO impement me!
-        pass
+        x,y = self.to.point
+        if self.agent.agent_type == "turtlebot":
+            moveTurtleBot(x, y, 2, self.index, turtlebot_publisher)
+        else:
+            moveTurtleBot(x, y, 2, self.index, drone_publisher)
 
 class PickUp(Action):
     def __init__(self, args, duration, world):

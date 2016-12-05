@@ -61,6 +61,7 @@ def turtle_action(data):
 
     # Action types from planner
     move = 0
+    pickup = 1
     deliver = 2
 
     is_move = True
