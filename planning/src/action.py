@@ -1,7 +1,8 @@
 import sys,re
 from world import World, Box, Agent, Person, Waypoint
+import settings
 
-def construct_graph(plan_file, world):
+def parse_plan(plan_file, world):
     actions = []
     ix = 1
     with open(plan_file, 'r') as f:
@@ -11,33 +12,62 @@ def construct_graph(plan_file, world):
                 actions.append(action)
                 action.index = ix
                 ix += 1
+    return actions
 
+def construct_graph(actions, world):
     actions.reverse()
 
-    root = Root(world)
-    root.index = 0
-
+    symbol_index = {}
     for action in actions:
-        add_deps(root, root, action)
-        root.add_succ(action)
-    root.succ.reverse()
+        add_deps(symbol_index, action)
+        #root.add_succ(action)
 
     actions.reverse()
     for action in actions:
+        action.succ = list(action.succ)
         action.succ.sort(key=lambda action: action.index)
         for succ in action.succ:
             succ.add_pre(action)
+        action.pre = list(action.pre)
         action.pre.sort(key=lambda action: action.index)
 
-    return (root, actions)
+    root = Root(world)
+    root.index = 0
+    for action in actions:
+        if not action.pre:
+            root.add_succ(action)
+            #action.pre.append(root)
+    root.succ = list(root.succ)
+    root.succ.sort(key=lambda action: action.index)
 
-def add_deps(root, root_child, new_node):
-    for su in list(root_child.succ):
-        if su.overlaps(new_node):
-            root.remove_succ(su)
-            new_node.add_succ(su)
-        else:
-            add_deps(root, su, new_node)
+    return root
+
+# Adds delay actions before move actions, to simulate path planning calculations.
+def add_delays(actions, world):
+    action_copy = []
+    index = 1
+    for action in actions:
+        if isinstance(action, Move):
+            if action.agent.agent_type == 'turtlebot':
+                dur = settings.plan['turtle_delay']
+            else:
+                dur = settings.plan['drone_delay']
+            d = Delay(action.args, dur, world)
+            d.index = index
+            action_copy.append(d)
+            index += 1
+        action.index = index
+        action_copy.append(action)
+        index += 1
+    return action_copy
+
+def add_deps(symbol_index, new_node):
+    for symbol in new_node.symbols:
+        if symbol in symbol_index:
+            node = symbol_index[symbol]
+            new_node.add_succ(node)
+    for symbol in new_node.symbols:
+        symbol_index[symbol] = new_node
 
 def from_plan(line, world):
     planre = re.compile('[0-9.]+: \(([_a-z0-9- ]+)\) \[([0-9.]+)\]')
@@ -48,7 +78,7 @@ def from_plan(line, world):
         parts = group.split(" ")
         args = parts[1:len(parts)]
         action = parts[0]
-        if action == 'move':
+        if action == 'move' or action == 'fly':
             return Move(args, duration, world)
         elif action == 'deliver':
             return Deliver(args, duration, world)
@@ -56,6 +86,8 @@ def from_plan(line, world):
             return PickUp(args, duration, world)
         elif action == 'hand-over':
             return HandOver(args, duration, world)
+        else:
+            raise Exception('unknown action: ' + action)
     return None
 
 
@@ -64,23 +96,15 @@ class Action(object):
         self.duration = duration
         self.symbols = set(args)
         self.args = args
-        self.succ = []
-        self.pre = []
+        self.succ = set()
+        self.pre = set()
+        self.completed = False
 
     def add_succ(self, action):
-        if action not in self.succ:
-            self.succ.append(action)
+        self.succ.add(action)
 
     def add_pre(self, action):
-        if action not in self.pre:
-            self.pre.append(action)
-
-    def remove_succ(self, action):
-        if action in self.succ:
-            self.succ.remove(action)
-
-    def overlaps(self, other):
-        return not self.symbols.isdisjoint(other.symbols) 
+        self.pre.add(action)
 
     def has_symbol(self, s):
         return s in self.symbols
@@ -93,21 +117,23 @@ class Action(object):
         return str(self.index) + ' [' + ', '.join(deps) + '] ' + \
                 self.__class__.__name__ + ' ' + ', '.join(self.args)
 
+    def complete_action(self):
+        pass
+
 class Root(Action):
     def __init__(self, world):
         super(Root, self).__init__([], 0, world)
-
-    def overlaps(self, other):
-        return True
 
 class Move(Action):
     def __init__(self, args, duration, world):
         super(Move, self).__init__(args, duration, world)
         self.agent = world.agent(args[0])
+        self.start = world.waypoint(args[1])
         self.to = world.waypoint(args[2])
 
     def complete_action(self):
-        self.agent.location = self.to.name
+        self.agent.location = self.to
+        self.completed = True
 
 class Deliver(Action):
     def __init__(self, args, duration, world):
@@ -121,6 +147,7 @@ class Deliver(Action):
         self.box.free = False
         self.box.location = self.agent.location
         self.person.handled = True
+        self.completed = True
 
 class PickUp(Action):
     def __init__(self, args, duration, world):
@@ -132,6 +159,7 @@ class PickUp(Action):
         self.agent.carrying = self.box.name
         self.box.location = None
         self.box.free = False
+        self.completed = True
 
 class HandOver(Action):
     def __init__(self, args, duration, world):
@@ -143,4 +171,16 @@ class HandOver(Action):
     def complete_action(self):
         self.turtlebot.carrying = self.drone.carrying
         self.drone.carrying = None
+        self.completed = True
 
+# Delays simulate the time it takes turtlebot/drone to generate new path.
+# We dont use this action during actual planning, but instead add it to 
+# move cost, otherwise planning would be more complex.
+# This action is only used during simulation.
+class Delay(Action):
+    def __init__(self, args, duration, world):
+        super(Delay, self).__init__(args, duration, world)
+        self.agent = world.agent(args[0])
+
+    def complete_action(self):
+        self.completed = True

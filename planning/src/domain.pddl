@@ -27,15 +27,46 @@
   (empty ?agent - agent)
   (carrying ?agent - agent ?box - box))
 
-(:functions (move-duration ?from ?to - waypoint) - number)
+(:functions (move-duration ?from ?to - waypoint) - number
+            (fly-duration ?from ?to - waypoint) - number
+            (fly-carry-duration ?from ?to - waypoint) - number)
 
+;move turtlebot
 (:durative-action move
-  :parameters (?agent - agent ?from ?to - waypoint)
+  :parameters (?turtlebot - turtlebot ?from ?to - waypoint)
   :duration (= ?duration (move-duration ?from ?to))
   :condition (and (over all (empty ?to))
-                  (at start (at ?agent ?from)))
-  :effect (and (at end (not (at ?agent ?from)))
-               (at end (at ?agent ?to))
+                  (at start (at ?turtlebot ?from)))
+  :effect (and (at end (not (at ?turtlebot ?from)))
+               (at end (at ?turtlebot ?to))
+               (at end (not (occupied ?from)))
+               (at end (empty ?from))
+               (at start (not (empty ?to)))
+               (at start (occupied ?to))))
+
+;move drone with box (needs different name from 'move' to stop yahsp3 from segfaulting)
+(:durative-action fly 
+  :parameters (?drone - drone ?from ?to - waypoint ?box - box)
+  :duration (= ?duration (fly-carry-duration ?from ?to))
+  :condition (and (over all (carrying ?drone ?box))
+                  (over all (empty ?to))
+                  (at start (at ?drone ?from)))
+  :effect (and (at end (not (at ?drone ?from)))
+               (at end (at ?drone ?to))
+               (at end (not (occupied ?from)))
+               (at end (empty ?from))
+               (at start (not (empty ?to)))
+               (at start (occupied ?to))))
+
+;move drone without box (needs different name from 'move' to stop yahsp3 from segfaulting)
+(:durative-action fly
+  :parameters (?drone - drone ?from ?to - waypoint)
+  :duration (= ?duration (fly-duration ?from ?to))
+  :condition (and (over all (empty ?drone))
+                  (over all (empty ?to))
+                  (at start (at ?drone ?from)))
+  :effect (and (at end (not (at ?drone ?from)))
+               (at end (at ?drone ?to))
                (at end (not (occupied ?from)))
                (at end (empty ?from))
                (at start (not (empty ?to)))

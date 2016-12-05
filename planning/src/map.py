@@ -1,18 +1,16 @@
 #!/usr/bin/env python
 
 from __future__ import generators
-#import logging
-#import rospy
 
 import settings
 
-from copy import deepcopy
+from copy import *
 import heapq
+import random
 
 import numpy as np
 from scipy.spatial import Delaunay
 
-# TODO filter slivers from original delaunay
 class Map(object):
 
     """This class is used to calculate a mesh from occupancy grid and obtain 
@@ -27,26 +25,37 @@ class Map(object):
         for p in points:
             assert type(p) == tuple
 
-        print "creating mesh"
+        print("info: creating mesh")
         self.initial_points = points
         self.occupancy_grid = occupancy_grid
-        downsample_factor = int(np.ceil(settings.mesh['padding_radius']/occupancy_grid.res()))
-        downsample = occupancy_grid.downsample_grid(downsample_factor)
-        radius = settings.mesh['padding_radius']# / downsample.res()
-        downsample = OccupancyGrid(downsample.pad_occupied(radius), downsample.meta)
-        self.downsample = downsample
+        self.nodes = []
+        self.neighbors = []
+        self.moved_points = {}
+        
+        radius = settings.mesh['padding_radius'] / occupancy_grid.res()
+        #pad_grid = occupancy_grid
+        pad_grid = occupancy_grid.pad_occupied(radius)
+        self.pad_grid = pad_grid
 
+        self.pad_grid = pad_grid
         # Make sure initial points are not on occupied cells
         for i, point in enumerate(points):
-            update = downsample.closest_free(point)
+            if not pad_grid.in_bounds(pad_grid.pixel(point)):
+                print('warning: initial point ' + str(point) + ' not in bounds')
+                continue
+            update = pad_grid.closest_free(point)
             if update is not None and update != point:
-                #rospy.logerr("initial point %s is occupied, relocating to %s", point, update)
                 print('warning: initial point ' + str(point) + 
                         ' is occupied, relocating to ' + str(update))
+                self.moved_points[point] = update
                 points[i] = update
             elif update is None:
                 print('warning: initial point ' + str(point) + 
                         ' is occupied, no free point found')
+
+        if len(points) < 3:
+            print('warning: not enough waypoints')
+            return
 
 
         # Next compute a* search for each path on Delaunay triangulation.
@@ -57,20 +66,21 @@ class Map(object):
 
         initial_px = set()
         for p in points:
-            px = downsample.pixel(p)
+            px = pad_grid.pixel(p)
             nodes[px] = (p[0], p[1])
             neighbors[px] = set()
             initial_px.add(px)
 
-        print "search paths"
+        print("info: searching paths")
         for i,tri in enumerate(triangles.simplices):
             def path(ix1,ix2):
-                px1 = downsample.pixel(points[ix1])
-                px2 = downsample.pixel(points[ix2])
-                if downsample.grid[px1[0], px1[1]] < downsample.occupied_thresh() or \
-                        downsample.grid[px2[0], px2[1]] < downsample.occupied_thresh():
-                    print('warning: goal or start occupied ' + 
-                            str(points[ix1]) + ' ' + str(points[ix2]))
+                px1 = pad_grid.pixel(points[ix1])
+                px2 = pad_grid.pixel(points[ix2])
+                if pad_grid.is_occupied(px1):
+                    print('warning: path occupied ' + str(points[ix1]))
+                    return
+                if pad_grid.is_occupied(px2):
+                    print('warning: path occupied ' + str(points[ix2]))
                     return
 
                 # Don't need to do search sometimes because all occur twice 
@@ -79,7 +89,7 @@ class Map(object):
                 searched.add((ix1,ix2))
                 start = (px1[0], px1[1])
                 goal = (px2[0], px2[1])
-                came_from, costs = a_star_search(downsample, start, goal)
+                came_from, costs = a_star_search(pad_grid, start, goal)
                 if goal not in came_from or start not in came_from:
                     print('warning: initial path not reachable ' + 
                             str(points[ix1]) + ' ' + str(points[ix2]))
@@ -89,10 +99,10 @@ class Map(object):
                     p1 = mypath[i]
                     p2 = mypath[i+1]
                     if p1 not in nodes:
-                        nodes[p1] = downsample.coords(p1, center=True)
+                        nodes[p1] = pad_grid.coords(p1)
                         neighbors[p1] = set()
                     if p2 not in nodes:
-                        nodes[p2] = downsample.coords(p2, center=True)
+                        nodes[p2] = pad_grid.coords(p2)
                         neighbors[p2] = set()
                     neighbors[p1].add(p2)
                     neighbors[p2].add(p1)
@@ -113,52 +123,45 @@ class Map(object):
                     for nb in neighbors[px]:
                         assert px in neighbors[nb], "not undirected graph " + str(p)
 
-        print "pruning graph"
+        print("info: pruning graph")
+
+        # this prunes graph by straighten paths and then joining adjacent paths,
+        # until conditions on min_dist are met.
+        check_consistency()
         while True:
             pre_len = len(nodes)
-            self.straighten_paths(nodes, neighbors, initial_px, 0.001)
-            self.join_adjacent(downsample, nodes, neighbors, initial_px)
-            self.straighten_paths(nodes, neighbors, initial_px, 0)
+            self.straighten_paths(nodes, neighbors, initial_px)
+            self.join_adjacent(pad_grid, nodes, neighbors, initial_px)
             if pre_len == len(nodes):
                 break
             check_consistency()
 
+        # remove any errors caused by pruning
+        self.remove_overlapping(nodes, neighbors)
+        check_consistency()
+
         ix = 0
         index = {}
-        self.nodes = []
-        self.neighbors = []
-        for px,p in nodes.iteritems():
-            index[px] = len(self.nodes)
-            self.nodes.append(p)
-        for px,p in nodes.iteritems():
+        for ix,node in nodes.iteritems():
+            index[ix] = len(self.nodes)
+            self.nodes.append(node)
+        for ix,ineighbors in neighbors.iteritems():
+            jx = index[ix]
             nbs = []
-            self.neighbors.append(nbs)
-            for nb in neighbors[px]:
+            self.neighbors.insert(jx, nbs)
+            for nb in ineighbors:
                 nbs.append(index[nb])
 
-    """ 
-    ratio is the minimum ratio between area and length
-    """
-    def straighten_paths(self, nodes, neighbors, initial_px, ratio):
+    def straighten_paths(self, nodes, neighbors, initial_px, only_straight = False):
         for px in deepcopy(nodes):
             if px in neighbors and len(neighbors[px]) < 3 and px not in initial_px:
                 if len(neighbors[px]) == 2:
                     aslist = list(neighbors[px])
                     px1 = aslist[0]
                     px2 = aslist[1]
-                    if ratio > 0:
-                        p = nodes[px]
-                        p1 = nodes[px1]
-                        p2 = nodes[px2]
-                        a = np.hypot(p1[0]-p[0], p1[1]-p[1])
-                        b = np.hypot(p2[0]-p[0], p2[1]-p[1])
-                        c = np.hypot(p1[0]-p2[0], p1[1]-p2[1])
-                        s = (a+b+c)/2
-                        area = np.sqrt(s*abs(s-a)*abs(s-b)*abs(s-c))
-                        length = np.max([a,b,c])
-                        if area/length > ratio:
+                    if only_straight:
+                        if px1[0] != px2[0] and px1[1] != px2[1]:
                             continue
-
                     neighbors[px1].remove(px)
                     neighbors[px2].remove(px)
                     neighbors[px1].add(px2)
@@ -171,136 +174,183 @@ class Map(object):
                 del nodes[px]
 
     def join_adjacent(self, grid, nodes, neighbors, initial_px):
-        skip_pairs = set()
+        def closestpair():
+            dist = np.inf
+            pair = (None, None)
+            for px in nodes:
+                p = nodes[px]
+                for nb in neighbors[px]:
+                    nbp = nodes[nb]
+                    d = np.hypot(p[0]-nbp[0], p[1]-nbp[1])
+                    if px in initial_px and nb in initial_px:
+                        continue
+                    if d < dist:
+                        dist = d
+                        pair = (px,nb)
+            return (dist, pair[0], pair[1])
+
         while True:
-            for n in nodes:
-                assert n != None
-                assert nodes[n] != None
-            # TODO make O(nlogn)
-            def closest(points):
-                min_dist = np.inf
-                for px in points:
-                    for bx in points:
-                        p = nodes[px]
-                        b = nodes[bx]
-                        dist = np.hypot(p[0]-b[0], p[1]-b[1])
-                        if (bx,px) not in skip_pairs and b != p and dist < min_dist:
-                            min_dist = dist
-                            p1 = px
-                            p2 = bx
-                return (min_dist, p1, p2)
+            dist, px1, px2 = closestpair()
+            if px1 is None or dist > settings.mesh['mesh_min_dist']:
+                return
 
-            dist, px1, px2 = closestpair(list(nodes.keys()), nodes, skip_pairs)
+            p1 = nodes[px1]
+            p2 = nodes[px2]
+            if dist > settings.mesh['mesh_min_dist']:
+                return
 
-            if dist > settings.mesh['min_dist']:
-                break
+            def join(jpx1, jpx2):
+                for neighbor in neighbors[jpx2]:
+                    if neighbor != jpx1:
+                        neighbors[neighbor].remove(jpx2)
+                        neighbors[neighbor].add(jpx1)
+                neighbors[jpx1] |= neighbors[jpx2]
+                if jpx1 in neighbors[jpx1]:
+                    neighbors[jpx1].remove(jpx1)
+                if jpx2 in neighbors[jpx1]:
+                    neighbors[jpx1].remove(jpx2)
+                del neighbors[jpx2]
+                del nodes[jpx2]
 
-            def join(px1, px2, center=False):
-                if center:
-                    p1 = nodes[px1]
-                    p2 = nodes[px2]
-                    centroid = ((p1[0] + p2[0])/2, (p1[1] + p2[1])/2)
-                    nodes[px1] = grid.closest_free(centroid, radius=1/grid.res())
-                for neighbor in neighbors[px2]:
-                    if neighbor != px1:
-                        neighbors[neighbor].remove(px2)
-                        neighbors[neighbor].add(px1)
-                neighbors[px1].update(neighbors[px2])
-                if px1 in neighbors[px1]:
-                    neighbors[px1].remove(px1)
-                if px2 in neighbors[px1]:
-                    neighbors[px1].remove(px2)
-                del neighbors[px2]
-                del nodes[px2]
-                return px1
-
-            if px1 in initial_px and px2 in initial_px:
-                skip_pairs.add((px1, px2))
-                skip_pairs.add((px2, px1))
-                continue
-            elif px1 in initial_px:
+            if px1 in initial_px:
                 join(px1, px2)
             elif px2 in initial_px:
                 join(px2, px1)
             else:
-                join(px1, px2, center=True)
+                p1 = nodes[px1]
+                p2 = nodes[px2]
+                centroid = ((p1[0] + p2[0])/2, (p1[1] + p2[1])/2)
+                if np.hypot(p1[0] - centroid[0], p1[1] - centroid[1]) < \
+                        np.hypot(p2[0] - centroid[0], p2[1] - centroid[1]):
+                    join(px1,px2)
+                else:
+                    join(px2,px1)
+
+    def remove_overlapping(self, nodes, neighbors):
+        thresh = settings.mesh['initial_min_dist']
+
+        def line_dist(linep1, linep2, point):
+            assert isinstance(point, tuple)
+            a = point[0] - linep1[0]
+            b = point[1] - linep1[1]
+            c = linep2[0] - linep1[0]
+            d = linep2[1] - linep1[1]
+            dot = a*c + b*d
+            len_sq = c*c + d*d
+            param = -1
+            if len_sq != 0:
+                param = dot / len_sq
+            if param < 0:
+                xx = linep1[0]
+                yy = linep1[1]
+            elif param > 1:
+                xx = linep2[0]
+                yy = linep2[1]
+            else:
+                xx = linep1[0] + param*c
+                yy = linep1[1] + param*d
+            dx = point[0] - xx
+            dy = point[1] - yy
+            dist = np.sqrt(dx*dx + dy*dy)
+            return dist
+
+
+        # prune edges which are too close to non-neighbor points
+        for px1 in nodes:
+            p1 = nodes[px1]
+            for px2 in deepcopy(neighbors[px1]):
+                p2 = nodes[px2]
+                for nx in nodes:
+                    if nx == px1 or nx == px2 or px1 not in neighbors[px2] or px2 not in neighbors[px1]:
+                        continue
+                    n = nodes[nx]
+                    if line_dist(p1, p2, n) < settings.mesh['initial_min_dist']:
+                        neighbors[px1].remove(px2)
+                        neighbors[px2].remove(px1)
+                        print("info: pruning edge" + str(p1) + " to " + str(p2) + 
+                                ", too close to " + str(n))
+
+        def line_intersect(a,b,c,d):
+            def ccw(p1,p2,p3):
+                return (p3[1]-p1[1]) * (p2[0]-p1[0]) > (p2[1]-p1[1]) * (p3[0]-p1[0])
+
+            return ccw(a,c,d) != ccw(b,c,d) and ccw(a,b,c) != ccw(a,b,d)
+
+        # prune overlapping edges
+        edges = set()
+        for px1 in nodes:
+            for px2 in deepcopy(neighbors[px1]):
+                edges.add((px1,px2))
+        removed_edges = set()
+        for e1 in edges:
+            if e1 in removed_edges:
+                continue
+            for e2 in edges:
+                if e2 in removed_edges:
+                    continue
+                if e1[0] == e2[0] or e1[0] == e2[1] or \
+                        e1[1] == e2[0] or e1[1] == e2[1]:
+                    continue
+                prune = e1
+                save = e2
+                # prune longest
+                g = self.pad_grid
+                ex1 = (g.coords(e1[0]), g.coords(e1[1]))
+                ex2 = (g.coords(e2[0]), g.coords(e2[1]))
+                if np.hypot(ex1[0][0]-ex1[1][0], ex1[0][1]-ex1[1][1]) > \
+                        np.hypot(ex2[0][0]-ex2[1][0], ex2[0][1]-ex2[1][1]):
+                    prune = e1
+                    save = e2
+                else:
+                    prune = e2
+                    save = e1
+
+                if line_intersect(e1[0], e1[1], e2[0], e2[1]):
+                    removed_edges.add(prune)
+                    neighbors[prune[0]].remove(prune[1])
+                    neighbors[prune[1]].remove(prune[0])
+                    prunex = (g.coords(prune[0]), g.coords(prune[1]))
+                    savex = (g.coords(save[0]), g.coords(save[1]))
+                    print("info: pruning edge " + str(prunex[0]) + " to " + str(prunex[1]) + 
+                            ", overlapping " + str(savex[0]) + " to " + str(savex[1]))
+
 
     def plot(self, show=True):
         import matplotlib.pyplot as plt
         grid = self.occupancy_grid
         px,py = grid.grid.shape
         orig = grid.meta['origin']
-        min_coords = grid.coords((0, 0))
-        max_coords = grid.coords((px, py))
+
+        ext = [orig[0], orig[0]+py*grid.res(), orig[1], orig[1]+px*grid.res()]
 
         ext = [orig[0], orig[0]+py*grid.res(), orig[1], orig[1]+px*grid.res()]
         plt.imshow(grid.grid,  interpolation='none', cmap=plt.cm.gray, \
-                aspect='equal', extent=ext)#, origin='lower')
+                aspect='equal', extent=ext)
+        plt.imshow(self.pad_grid.grid,  interpolation='none', cmap=plt.cm.gray, \
+                aspect='equal', extent=ext, alpha=.5)
 
+        initial_xs = []
+        initial_ys = []
         xs = []
         ys = []
-        for node in self.initial_points:
-            xs.append(node[0])
-            ys.append(node[1])
+        #for node in self.initial_points:
+        for node in self.nodes:
+            if node in self.initial_points:
+                initial_xs.append(node[0])
+                initial_ys.append(node[1])
+            else:
+                xs.append(node[0])
+                ys.append(node[1])
+
+        plt.plot(xs, ys, 'go')
+        plt.plot(initial_xs, initial_ys,'ro')
 
         for ix,node in enumerate(self.nodes):
             for nbix in self.neighbors[ix]:
                 nb = self.nodes[nbix]
                 plt.plot([node[0], nb[0]], [node[1], nb[1]], color='0.1')
-        plt.plot(xs,ys,'o')
         if show:
             plt.show()
-
-
-
-def closestpair(L, nodes, skip_pairs):
-
-
-    def dist(px,qx):
-        p = nodes[px]
-        q = nodes[qx]
-        return np.hypot(p[0]-q[0],p[1]-q[1])
-
-    best = [np.inf, (None, None)]
-
-    # check whether pair (p,q) forms a closer pair than one seen already
-    def testpair(px,qx):
-        if (px,qx) in skip_pairs:
-            return
-        d = dist(px,qx)
-        if d < best[0]:
-            best[0] = d
-            best[1] = (px,qx)
-            
-    # merge two sorted lists by y-coordinate
-    def merge(A,B):
-        i = 0
-        j = 0
-        while i < len(A) or j < len(B):
-            if j >= len(B) or (i < len(A) and A[i][1] <= B[j][1]):
-                yield A[i]
-                i += 1
-            else:
-                yield B[j]
-                j += 1
-
-    # Find closest pair recursively; returns all points sorted by y coordinate
-    def recur(L):
-        if len(L) < 2:
-            return L
-        split = len(L)/2
-        splitx = L[split][0]
-        L = list(merge(recur(L[:split]), recur(L[split:])))
-        E = [p for p in L if abs(p[0]-splitx) < best[0]]
-        for i in range(len(E)):
-            for j in range(1,8):
-                if i+j < len(E):
-                    testpair(E[i],E[i+j])
-        return L
-    
-    L.sort()
-    recur(L)
-    return (best[0], best[1][0], best[1][1])
 
 class OccupancyGrid(object):
 
@@ -319,28 +369,13 @@ class OccupancyGrid(object):
         x,y = px
         return 0 <= x < self.grid.shape[0] and 0 <= y < self.grid.shape[1]
 
-    def passable(self, px):
-        return not self.is_occupied(px)
-
     def cost(self, px1, px2):
+        # TODO use surrounding obstacles AND unexplored gets high cost
         a,b = px1
         c,d = px2
         return np.hypot(a-c, b-d)
 
-    def neighbors(self, px):
-        x,y = px
-        results = [(x+1, y), 
-                (x+1,y-1),
-                (x, y-1), 
-                (x-1, y-1),
-                (x-1, y),
-                (x-1, y+1),
-                (x, y+1),
-                (x+1, y+1)]
-        results = filter(self.in_bounds, results)
-        results = filter(self.passable, results)
-        return results
-        
+       
     @classmethod
     def from_pgm(cls, base_file_name):
         import yaml
@@ -349,7 +384,7 @@ class OccupancyGrid(object):
             meta = yaml.load(stream)
     
         with open(base_file_name + '.pgm') as stream:
-            grid = imread(stream)
+            grid = imread(stream).T
     
         return cls(grid, meta)
     
@@ -362,10 +397,9 @@ class OccupancyGrid(object):
         for i in np.arange(0, sx):
             for j in np.arange(0, sy):
                 if self.grid[i,j] < self.occupied_thresh():
-                    y,x = np.ogrid[-i:sx-i, -j:sy-j]
-                    mask = x*x + y*y <= radius*radius
-                    new_grid[mask] = 0
-        return new_grid
+                    x,y = np.ogrid[-i:sx-i, -j:sy-j]
+                    new_grid[x*x + y*y <= radius*radius] = 0
+        return OccupancyGrid(new_grid, self.meta)
 
     def free_thresh(self):
         return (1-self.meta['free_thresh'])*255
@@ -376,102 +410,82 @@ class OccupancyGrid(object):
     def res(self):
         return self.meta['resolution']
 
-    def closest_free(self, point, radius=1):
-        # TODO use HeapQueue
+    def closest_free(self, point, radius=100):
         if self.is_free(point, pixel=False):
             return point
         start = self.pixel(point)
         h = []
-        heapq.heappush(h, (0, start))
+        queue = PriorityQueue()
+        queue.put(start, 0)
         ixs = [[1,0], [0,1], [-1,0], [0,-1]]
         added = set()
-        while True:
-            if not h:
-                print "none"
-                return None
-            c,px = heapq.heappop(h)
+        while not queue.empty():
+            c,px = queue.get()
             if c > radius:
-                print "none"
                 return None
             if self.in_bounds(px) and self.is_free(px):
-                return self.coords(px, center=True)
+                return self.coords(px)
             for cand in map(lambda x:(x[0]+px[0], x[1]+px[1]), ixs):
                 if cand not in added:
-                    candp = self.coords(cand, center=True)
+                    candp = self.coords(cand)
                     dist = np.hypot(point[0] - candp[0], point[1] - candp[1])
-                    heapq.heappush(h, (dist, cand))
-                    added.add(cand)
+                    if dist <= radius:
+                        queue.put(cand, dist)
+                        added.add(cand)
+        return None
 
     def is_free(self, point, pixel = True):
+        thresh = self.free_thresh()
+        if settings.plan['walk_unknown']:
+            thresh = self.occupied_thresh()+1
         if not pixel:
             px = self.pixel(point)
         else:
             px = point
-        return self.grid[px[0], px[1]] > self.free_thresh()
+        return self.in_bounds(px) and self.grid[px[0], px[1]] > thresh
 
     def is_occupied(self, point, pixel = True):
+        thresh = self.occupied_thresh()
+        if not settings.plan['walk_unknown']:
+            thresh = self.free_thresh()-1
         if not pixel:
             px = self.pixel(point)
         else:
             px = point
-        return self.grid[px[0], px[1]] < self.occupied_thresh()
+        return not self.in_bounds(px) or self.grid[px[0], px[1]] < thresh
         
-    def coords(self, px, center = False):
+    def coords(self, px):
         orig = self.meta['origin']
         res = self.meta['resolution']
-        i_max = self.grid.shape[0]
-        j_max = self.grid.shape[1]
+        i_min = self.grid.shape[0]
+        j_min = self.grid.shape[1]
         x_min = orig[0]
-        x_max = i_max*res+orig[0]
         y_min = orig[1]
-        y_max = j_max*res+orig[1]
-        x = self._translate(px[0], 0, i_max, x_min, x_max)
-        y = self._translate(px[1], 0, j_max, y_min, y_max)
-        if center == True:
-            x += res/2
-            y += res/2
+        x_max = j_min*res+orig[0]
+        y_max = i_min*res+orig[1]
+        x = self._translate(px[1], 0, j_min, x_min, x_max)
+        y = self._translate(px[0], 0, i_min, y_max, y_min)
+        x += res/2
+        y -= res/2
         return (x,y)
 
     def pixel(self, p):
         orig = self.meta['origin']
         res = self.meta['resolution']
-        i_max = self.grid.shape[0]
-        j_max = self.grid.shape[1]
+        i_min = self.grid.shape[0]
+        j_min = self.grid.shape[1]
         x_min = orig[0]
-        x_max = i_max*res+orig[0]
         y_min = orig[1]
-        y_max = j_max*res+orig[1]
-        p1 = self._translate(p[0], x_min, x_max, 0, i_max)
-        p2 = self._translate(p[1], y_min, y_max, 0, j_max)
+        x_max = j_min*res+orig[0]
+        y_max = i_min*res+orig[1]
+        p1 = self._translate(p[1], y_max, y_min, 0, i_min)
+        p2 = self._translate(p[0], x_min, x_max, 0, j_min)
         return (int(p1), int(p2))
 
     def _translate(self, src, src_min, src_max, res_min, res_max):
         return float((src - src_min)) / \
                 float((src_max - src_min)) * \
                 float((res_max - res_min)) + res_min
-
-    def downsample_grid(self, fact):
-        meta = deepcopy(self.meta)
-        meta['resolution'] = meta['resolution'] * fact
-        res = meta['resolution']
-
-        x, y = self.grid.shape
-        sx, sy = (int(round(x/float(fact))), int(round(y/float(fact))))
-        img = np.zeros((sx,sy))
-
-        for xi in np.arange(0, sx):
-            for yi in np.arange(0, sy):
-                arr = self.grid[xi*fact:(xi+1)*fact, yi*fact:(yi+1)*fact]
-                free = np.where(arr > self.free_thresh())
-                occ = np.where(arr < self.occupied_thresh())
-                if occ[0].shape[0] > 0:
-                    img[xi,yi] = 0
-                elif free[0].shape[0] > (fact**2)/2:
-                    img[xi,yi] = 255
-                else:
-                    img[xi,yi] = (self.free_thresh()+self.occupied_thresh())/2
-
-        return OccupancyGrid(img, meta)
 
 def reconstruct_path(came_from, start, goal):
     current = goal
@@ -492,26 +506,46 @@ class PriorityQueue:
         heapq.heappush(self.elements, (priority, item))
     
     def get(self):
-        return heapq.heappop(self.elements)[1]
+        return heapq.heappop(self.elements)
 
-def a_star_search(graph, start, goal):
+def a_star_search(grid, start, goal, diagonal = True):
     frontier = PriorityQueue()
     frontier.put(start, 0)
     came_from = {}
     cost_so_far = {}
     came_from[start] = None
     cost_so_far[start] = 0
+
+    def can_walk(px1, px2):
+        if not grid.in_bounds(px2):
+            return False
+        if np.hypot(px1[0]-px2[0], px1[1]-px2[1]) > 1:
+            dx = px2[0]-px1[0]
+            dy = px2[1]-px1[1]
+            return not grid.is_occupied(px2) and \
+                    not grid.is_occupied((px1[0]+dx, px1[1])) and \
+                    not grid.is_occupied((px1[0], px1[1]+dy))
+        else:
+            return not grid.is_occupied(px2)
     
     while not frontier.empty():
-        current = frontier.get()
+        current = frontier.get()[1]
         
         if current == goal:
             break
-        
-        for next in graph.neighbors(current):
-            # symmetry breaking noise, still deterministic
-            r = (current.__hash__() % 100)/10000.0
-            new_cost = cost_so_far[current] + graph.cost(current, next) + r
+
+        x,y = current
+        neighbors = [(x+1,y),(x-1,y),(x,y+1),(x,y-1)]
+        if diagonal:
+            neighbors += [(x+1,y+1),(x+1,y-1),(x-1,y+1),(x-1,y-1)]
+
+        neighbors = filter(lambda x: can_walk(current, x), neighbors)
+
+        # serves as random tie-breaker, creating prettier paths  
+        random.shuffle(neighbors)
+
+        for next in neighbors:
+            new_cost = cost_so_far[current] + grid.cost(current, next)
             if next not in cost_so_far or new_cost < cost_so_far[next]:
                 cost_so_far[next] = new_cost
                 heuristic = np.hypot(goal[0]-next[0], goal[1]-next[1])
@@ -522,15 +556,18 @@ def a_star_search(graph, start, goal):
     return came_from, cost_so_far
 
 if __name__ == "__main__":
-    grid = OccupancyGrid.from_pgm('../../data/mapToG2')
-    #grid = OccupancyGrid.from_pgm('../data/willow-full')
     from world import World
-    w = World.from_json('../../data/mapToG2_simple.json')
-    #w = World.from_json('../data/problems/willow-big.json')
+    grid = OccupancyGrid.from_pgm('../../data/mapToG2')
+    #w = World.from_json('../../data/mapToG2_simple.json')
+    w = World.from_json('../../data/mapToG2_big.json')
+
+    #grid = OccupancyGrid.from_pgm('../../data/willow-full')
+    #w = World.from_json('../../data/willow-full_big.json')
+
+    x,y = grid.grid.shape
     points = []
     for waypoint in w.waypoints:
         points.append(waypoint.point)
-    m = Map(grid, points, consistency=False)
+    m = Map(grid, points, consistency=True)
     w.add_map_info(m)
-    w.generate_problem('test.pddl')
     m.plot()
