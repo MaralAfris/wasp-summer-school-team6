@@ -61,15 +61,15 @@ class object_detection:
         self.pathScript = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
         self.pathScript = self.pathScript + '/'
         print(self.pathScript)
-        #Delete possible previous objects list file
         self.objCoordsLog = self.pathScript + 'obj_detected.log'
+        #Delete possible previous objects list file (if only one instance planned)
         try:
             os.remove(self.objCoordsLog)
         except OSError:
             pass
         #Write file header
         with open(self.objCoordsLog, 'w') as l:
-            l.write('%s\t%s\t%s\t%s\n' %('ID', 'mapX', 'mapY', 'mapZ'))
+            l.write('%s\t%s\t\t%s\t%s\t%s\n' %('Source', 'Object', 'mapX', 'mapY', 'mapZ'))
         #Load masks
         self.grayMedBoxSmall = cv2.imread(self.pathScript+'MedBox.png',0)#MB funkade med forsta bilden
         self.grayMedBoxLarge = cv2.imread(self.pathScript+'MedBox100px.png',0)#MB funkade med forsta bilden
@@ -215,7 +215,7 @@ class object_detection:
         #Transform Point into map coordinates
         trans_pt = self.tl.transformPoint('/map', P)
         if not self.obj_exists(trans_pt, obj_type_id):
-            self.publish_obj(trans_pt, obj_type_id, log=True)
+            self.publish_obj(trans_pt, obj_type_id, obj, log=True)
 
     def obj_exists(self, map_pt, obj_type):
         '''
@@ -254,7 +254,7 @@ class object_detection:
 
         return obj_found
 
-    def publish_obj(self, map_pt, obj_type, log=False):
+    def publish_obj(self, map_pt, obj_type, obj_type_txt, log=False):
         '''
         Publishes the object coordinates according to the map
         '''
@@ -272,11 +272,15 @@ class object_detection:
 
         #Write to logfile
         if log:
+            src = 'Turtle'
+            if self.modeIsDrone:
+                src = 'Drone'
             with open(self.objCoordsLog, 'a') as l:
-                l.write('%d\t%d\t%d\t%d\n' %(obj_info_pub.ID,
-                                             obj_info_pub.point.x,
-                                             obj_info_pub.point.y,
-                                             obj_info_pub.point.z))
+                l.write('%s\t%s\t\t%d\t%d\t%d\n' %(src,
+                                                 obj_type_txt,
+                                                 obj_info_pub.point.x,
+                                                 obj_info_pub.point.y,
+                                                 obj_info_pub.point.z))
 
 
 #Check validity of the mode argument provided
