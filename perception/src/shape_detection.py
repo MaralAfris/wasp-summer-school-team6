@@ -20,6 +20,8 @@ from wasp_custom_msgs.msg import object_loc
 import tf
 
 import argparse
+import os
+import inspect
 
 class obj_map_item:
     def __init__(self, obj_type_id=None, map_x=0, map_y=0, map_z=0):
@@ -55,11 +57,25 @@ class object_detection:
         self.bridge = CvBridge()
         #Object to transform listener which will be used to transform the points from one coordinate system to other.
         self.tl = tf.TransformListener()
-        self.grayMedBoxSmall = cv2.imread('MedBox.png',0)#MB funkade med forsta bilden
-        self.grayMedBoxLarge = cv2.imread('MedBox100px.png',0)#MB funkade med forsta bilden
-        self.grayGreenBoy = cv2.imread('BlackPerson.png',0)
+        #Get the python code path to retrieve masks and write stuff
+        self.pathScript = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+        self.pathScript = self.pathScript + '/'
+        print(self.pathScript)
+        #Delete possible previous objects list file
+        self.objCoordsLog = self.pathScript + 'obj_detected.log'
+        try:
+            os.remove(self.objCoordsLog)
+        except OSError:
+            pass
+        #Write file header
+        with open(self.objCoordsLog, 'w') as l:
+            l.write('%s\t%s\t%s\t%s\n' %('ID', 'mapX', 'mapY', 'mapZ'))
+        #Load masks
+        self.grayMedBoxSmall = cv2.imread(self.pathScript+'MedBox.png',0)#MB funkade med forsta bilden
+        self.grayMedBoxLarge = cv2.imread(self.pathScript+'MedBox100px.png',0)#MB funkade med forsta bilden
+        self.grayGreenBoy = cv2.imread(self.pathScript+'BlackPerson.png',0)
 
-        self.body_cascade = cv2.CascadeClassifier('haarcascade_fullbody.xml')
+        self.body_cascade = cv2.CascadeClassifier(self.pathScript+'haarcascade_fullbody.xml')
         self.known_obj_map_list = [] #List containing detected objects
         self.obj_map_margin = 10 #Margin to consider for avoiding repetitive objects
         self.jumpOver = 1
@@ -199,7 +215,7 @@ class object_detection:
         #Transform Point into map coordinates
         trans_pt = self.tl.transformPoint('/map', P)
         if not self.obj_exists(trans_pt, obj_type_id):
-            self.publish_obj(trans_pt, obj_type_id)
+            self.publish_obj(trans_pt, obj_type_id, log=True)
 
     def obj_exists(self, map_pt, obj_type):
         '''
@@ -238,7 +254,7 @@ class object_detection:
 
         return obj_found
 
-    def publish_obj(self, map_pt, obj_type):
+    def publish_obj(self, map_pt, obj_type, log=False):
         '''
         Publishes the object coordinates according to the map
         '''
@@ -253,6 +269,14 @@ class object_detection:
         self.object_location_pub.publish(obj_info_pub)
         print('Published obj ID:%d at x:%d y:%d z:%d' %(obj_type, map_pt.point.x,
                                                         map_pt.point.y, map_pt.point.z))
+
+        #Write to logfile
+        if log:
+            with open(self.objCoordsLog, 'a') as l:
+                l.write('%d\t%d\t%d\t%d\n' %(obj_info_pub.ID,
+                                             obj_info_pub.point.x,
+                                             obj_info_pub.point.y,
+                                             obj_info_pub.point.z))
 
 
 #Check validity of the mode argument provided
