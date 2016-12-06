@@ -60,7 +60,6 @@ class object_detection:
         #Get the python code path to retrieve masks and write stuff
         self.pathScript = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
         self.pathScript = self.pathScript + '/'
-        print(self.pathScript)
         self.objCoordsLog = self.pathScript + 'obj_detected.log'
         #Delete possible previous objects list file (if only one instance planned)
         try:
