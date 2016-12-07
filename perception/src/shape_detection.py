@@ -89,58 +89,68 @@ class object_detection:
             cv2.CV_LOAD_IMAGE_COLOR = 1
             img_for_presentation = cv2.imdecode(np_arr, cv2.CV_LOAD_IMAGE_COLOR)
             img_original = cv2.copyMakeBorder(img_for_presentation,0,0,0,0,cv2.BORDER_REPLICATE)
-            #cv_image = self.bridge.imgmsg_to_cv2(data, 'bgr8')
-            #Create copy of captured image
-            #img_cpy = cv_image.copy()
-            #Color to HSV and Gray Scale conversion
-            hsv = cv2.cvtColor(img_original, cv2.COLOR_BGR2HSV)
-
-            #img = cv_image
             gray = cv2.cvtColor(img_original, cv2.COLOR_BGR2GRAY)
+
+            #Do some filtering magic
+            #Dilate and open image (join parts and reduce noise)
+            kernel = np.ones((4,4), np.uint8)
+            img_trans = cv2.morphologyEx(img_original, cv2.MORPH_OPEN, kernel)
+            img_trans = cv2.dilate(img_original, kernel, iterations=1)
+            #Median blur
+            img_trans = cv2.medianBlur(img_trans, 3)
+            #Equalize
+            b, g, r, = cv2.split(img_trans)
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+            cb = clahe.apply(b)
+            cg = clahe.apply(g)
+            cr = clahe.apply(r)
+            #Threshold red (to enhance detection)
+            #cr = cv2.compare(cr, np.uint8([90]), cv2.CMP_GE)
+            #Merge final image
+            img_enhanced = cv2.merge((cb, cg, cr))
+
+            #Color to HSV
+            hsv = cv2.cvtColor(img_enhanced, cv2.COLOR_BGR2HSV)
+
+            #Detect people (Haar cascade)
             bodies = self.body_cascade.detectMultiScale(gray,1.3,5)
             for (x,y,w,h) in bodies:
                 #print('Found a person!')
                 self.calc_coord(w, h, w, h, 'person')
                 cv2.rectangle(img_for_presentation, (x,y), (x+w, y+h), (255,0,0), 2)
 
-            #Thresholds
-            # worked with one video for TB, but not the other:
-            # 0-7 70-220 70-250
-            # 190-255 20-255 20-255
+            #HSV Thresholds
             if(self.modeIsDrone):
-                lower_red_upper = np.array([0, 120, 65])#drone didn't use
-                #upper_red_upper = np.array([0, 100, 80])#drone didn't use
-                upper_red_upper = np.array([7, 220,220])#drone didn't use
-                lower_red_lower = np.array([140, 90, 80])#drone 140,40,80
-                #upper_red_lower = np.array([140, 90,80])#drone 190,200,230
-                upper_red_lower = np.array([190, 240,230])#drone 190,200,230
+                lower_red_upper = np.array([0, 120, 65])
+                upper_red_upper = np.array([7, 220,220])
+                lower_red_lower = np.array([140, 90, 80])
+                upper_red_lower = np.array([190, 240,230])
             else :
-                lower_red_upper = np.array([0, 120, 90])    #TB 0, 70, 70
-                #upper_red_upper = np.array([0, 120, 90])  #   TB 7, 220 200
-                upper_red_upper = np.array([7, 255, 255])  #   TB 7, 220 200
-                lower_red_lower = np.array([140, 90, 60])#TB 140, 30, 30
-                #upper_red_lower = np.array([140, 30, 30])#TB 255, 230,150
-                upper_red_lower = np.array([255, 240,255])#TB 255, 230,150
+                lower_red_upper = np.array([0, 100, 100])
+                upper_red_upper = np.array([10, 255, 255])
+                lower_red_lower = np.array([140, 100, 100])
+                upper_red_lower = np.array([179, 255, 255])
 
             # Threshold the HSV image to get only single color portions
             redMask_upper = cv2.inRange(hsv, lower_red_upper, upper_red_upper)
             redMask_lower = cv2.inRange(hsv, lower_red_lower, upper_red_lower)
             redMask = cv2.bitwise_or(redMask_upper, redMask_lower)
+            redMask = cv2.GaussianBlur(redMask, (3,3), 1)
 
-            red_cv_image = cv2.bitwise_and(img_original, img_original, mask=redMask)
-            cv_image_gray = cv2.cvtColor(red_cv_image, cv2.COLOR_BGR2GRAY)
+            filtered_hsv = cv2.bitwise_and(hsv, hsv, mask=redMask)
+            (_, _, filtered_h) = cv2.split(filtered_hsv)
             wMedBoxSmall, hMedBoxSmall = self.grayMedBoxSmall.shape[::-1]
             wMedBoxLarge, hMedBoxLarge = self.grayMedBoxLarge.shape[::-1]
-            medBoxSmallMatchingResult=cv2.matchTemplate(cv_image_gray, self.grayMedBoxSmall, cv2.TM_CCOEFF_NORMED)
-            medBoxLargeMatchingResult=cv2.matchTemplate(cv_image_gray, self.grayMedBoxLarge, cv2.TM_CCOEFF_NORMED)
+            medBoxSmallMatchingResult=cv2.matchTemplate(filtered_h, self.grayMedBoxSmall, cv2.TM_CCOEFF_NORMED)
+            medBoxLargeMatchingResult=cv2.matchTemplate(filtered_h, self.grayMedBoxLarge, cv2.TM_CCOEFF_NORMED)
             if(self.modeIsDrone):
                 thresholdMedBoxSmall = 0.43
                 thresholdMedBoxLarge = 0.25
             else :
-                thresholdMedBoxSmall = 0.25
-                thresholdMedBoxLarge = 0.25
-            locMedBoxSmall = np.where(medBoxSmallMatchingResult >=thresholdMedBoxSmall)
-            locMedBoxLarge = np.where(medBoxLargeMatchingResult >=thresholdMedBoxLarge)
+                thresholdMedBoxSmall = 0.6
+                thresholdMedBoxLarge = 0.6
+            locMedBoxSmall = np.where(medBoxSmallMatchingResult >= thresholdMedBoxSmall)
+            locMedBoxLarge = np.where(medBoxLargeMatchingResult >= thresholdMedBoxLarge)
             for pt in zip (*locMedBoxSmall[::-1]):
                 #print('found Medical Kit far away!!')
                 self.calc_coord(pt[0], pt[1], wMedBoxSmall, hMedBoxSmall, 'medkit_far')
@@ -151,11 +161,8 @@ class object_detection:
                 cv2.rectangle(img_for_presentation, pt, (pt[0]+wMedBoxLarge, pt[1]+hMedBoxSmall), (50,200,200), 2)
             #Display the captured image
 
-            #cv2.imshow("Red screen",red_cv_image)
-            #cv2.imshow("Blue screen",blue_cv_image)
-            #cv2.imshow("Green screen",green_cv_image)
-            cv2.imshow("img",img_for_presentation)
-            cv2.imshow("red",red_cv_image)
+            cv2.imshow("Original+detections",img_for_presentation)
+            cv2.imshow("Filtered", filtered_h)
             cv2.waitKey(1)
 
     #Calculate coordinates according to picture size and stuff
@@ -212,7 +219,8 @@ class object_detection:
         P.point.z = dist
 
         #Transform Point into map coordinates
-        trans_pt = self.tl.transformPoint('/map', P)
+        #trans_pt = self.tl.transformPoint('/map', P)
+        trans_pt = P #TEST: DELETE THIS STUFF, and F*CK the mapping sh*t
         if not self.obj_exists(trans_pt, obj_type_id):
             self.publish_obj(trans_pt, obj_type_id, obj, log=True)
 
