@@ -141,7 +141,7 @@ class Move(Action):
         if self.agent.agent_type == "turtlebot":
             moveTurtleBot(x, y, 0, self.index, turtlebot_publisher)
         else:
-            moveTurtleBot(x, y, 0, self.index, drone_publisher)
+            moveDrone(x, y, 0, self.index, drone_publisher)
 
 class Deliver(Action):
     def __init__(self, args, duration, world):
@@ -158,8 +158,12 @@ class Deliver(Action):
         self.completed = True
 
     def execute(self, turtlebot_publisher, drone_publisher):
-        # TODO impement me!
-        pass
+        x = 0.0
+        y = 0.0
+        if self.agent.agent_type == "turtlebot":
+            moveTurtleBot(x, y, 1, self.index, turtlebot_publisher)
+        else:
+            moveDrone(x, y, 1, self.index, drone_publisher)
 
 class PickUp(Action):
     def __init__(self, args, duration, world):
@@ -174,8 +178,12 @@ class PickUp(Action):
         self.completed = True
 
     def execute(self, publisher,drone_publisher):
-        # TODO impement me!
-        pass
+        x = 0.0
+        y = 0.0
+        if self.agent.agent_type == "turtlebot":
+            moveTurtleBot(x, y, 2, self.index, turtlebot_publisher)
+        else:
+            moveDrone(x, y, 2, self.index, drone_publisher)
 
 class HandOver(Action):
     def __init__(self, args, duration, world):
@@ -190,8 +198,12 @@ class HandOver(Action):
         self.completed = True
 
     def execute(self, publisher,drone_publisher):
-        # TODO impement me!
-        pass
+        x = 0.0
+        y = 0.0
+        if self.agent.agent_type == "turtlebot":
+            moveTurtleBot(x, y, 3, self.index, turtlebot_publisher)
+        else:
+            moveDrone(x, y, 3, self.index, drone_publisher)
 
 # Delays simulate the time it takes turtlebot/drone to generate new path.
 # We dont use this action during actual planning, but instead add it to
