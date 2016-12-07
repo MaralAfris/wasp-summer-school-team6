@@ -70,9 +70,9 @@ class object_detection:
         with open(self.objCoordsLog, 'w') as l:
             l.write('%s\t%s\t\t%s\t%s\t%s\n' %('Source', 'Object', 'mapX', 'mapY', 'mapZ'))
         #Load masks
-        self.grayMedBoxSmall = cv2.imread(self.pathScript+'MedBox.png',0)#MB funkade med forsta bilden
-        self.grayMedBoxLarge = cv2.imread(self.pathScript+'MedBox100px.png',0)#MB funkade med forsta bilden
-        self.grayGreenBoy = cv2.imread(self.pathScript+'BlackPerson.png',0)
+        self.grayMedBox = cv2.imread(self.pathScript+'MedBox.png',0)
+        self.wGrayMedBox, self.hGrayMedBox = self.grayMedBox.shape[::-1]
+        self.minPxAllowed = 20
 
         self.body_cascade = cv2.CascadeClassifier(self.pathScript+'haarcascade_fullbody.xml')
         self.known_obj_map_list = [] #List containing detected objects
@@ -81,6 +81,9 @@ class object_detection:
         self.kernel = np.ones((4,4), np.uint8) #Kernel for erosion and dilatation
         self.clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8)) #Clahe equalization
 
+        self.frame_cnt = 0
+        self.frame_skip = 3
+
         self.jumpOver = 1
 
     #Callback function for subscribed image
@@ -88,6 +91,12 @@ class object_detection:
         self.jumpOver=self.jumpOver+1
         self.jumpOver=self.jumpOver%20
         if self.jumpOver==1:
+            #Only process the self.frame_skip frame
+            if self.frame_cnt < self.frame_skip:
+                self.frame_cnt += 1
+                return
+            self.frame_cnt = 0
+
             np_arr = np.fromstring(data.data, np.uint8)
             #The following is no longer named CV_LOAD_IMAGE_COLOR but CV_LOAD_COLOR. Works by defining it instead
             cv2.CV_LOAD_IMAGE_COLOR = 1
@@ -141,28 +150,31 @@ class object_detection:
 
             filtered_hsv = cv2.bitwise_and(hsv, hsv, mask=redMask)
             (_, _, filtered_h) = cv2.split(filtered_hsv)
-            wMedBoxSmall, hMedBoxSmall = self.grayMedBoxSmall.shape[::-1]
-            wMedBoxLarge, hMedBoxLarge = self.grayMedBoxLarge.shape[::-1]
-            medBoxSmallMatchingResult=cv2.matchTemplate(filtered_h, self.grayMedBoxSmall, cv2.TM_CCOEFF_NORMED)
-            medBoxLargeMatchingResult=cv2.matchTemplate(filtered_h, self.grayMedBoxLarge, cv2.TM_CCOEFF_NORMED)
             if(self.modeIsDrone):
-                thresholdMedBoxSmall = 0.43
-                thresholdMedBoxLarge = 0.25
+                thresholdMedBox = 0.25
             else :
-                thresholdMedBoxSmall = 0.6
-                thresholdMedBoxLarge = 0.6
-            locMedBoxSmall = np.where(medBoxSmallMatchingResult >= thresholdMedBoxSmall)
-            locMedBoxLarge = np.where(medBoxLargeMatchingResult >= thresholdMedBoxLarge)
-            for pt in zip (*locMedBoxSmall[::-1]):
-                #print('found Medical Kit far away!!')
-                self.calc_coord(pt[0], pt[1], wMedBoxSmall, hMedBoxSmall, 'medkit_far')
-                cv2.rectangle(img_for_presentation, pt, (pt[0]+wMedBoxSmall, pt[1]+hMedBoxSmall), (0,255,255), 2)
-            for pt in zip (*locMedBoxLarge[::-1]):
-                #print('found Medical Kit near!!')
-                self.calc_coord(pt[0], pt[1], wMedBoxLarge, hMedBoxLarge, 'medkit_near')
-                cv2.rectangle(img_for_presentation, pt, (pt[0]+wMedBoxLarge, pt[1]+hMedBoxSmall), (50,200,200), 2)
-            #Display the captured image
+                thresholdMedBox = 0.6
 
+            #Scale the pattern to find to optimize detection
+            for scale in np.linspace(0.2, 1.0, 10):
+                scaledMedBox = cv2.resize(self.grayMedBox, (0, 0), fx=scale, fy=scale)
+                wMedBox, hMedBox = scaledMedBox.shape[::-1]
+                #ratio = self.grayMedBox.shape[1] / scaledMedBox.shape[1]
+                #If the image is too small, break
+                if wMedBox < self.minPxAllowed or hMedBox < self.minPxAllowed:
+                    break
+
+                medBoxMatchingResult=cv2.matchTemplate(filtered_h, scaledMedBox,
+                                                       cv2.TM_CCOEFF_NORMED)
+                locMedBox = np.where(medBoxMatchingResult >= thresholdMedBox)
+                for pt in zip (*locMedBox[::-1]):
+                    #print('found Medical Kit near!!')
+                    self.calc_coord(pt[0], pt[1], wMedBox, hMedBox, 'medbox')
+                    cv2.rectangle(img_for_presentation, pt,
+                                  (pt[0]+wMedBox, pt[1]+hMedBox),
+                                  (50,200,200), 2)
+
+            #Display the captured image
             cv2.imshow("Original+detections",img_for_presentation)
             cv2.imshow("Filtered", filtered_h)
             cv2.waitKey(1)
@@ -181,12 +193,7 @@ class object_detection:
             focal_leng = 570.34222
 
         #Set properties per object detection type
-        if obj == 'medkit_near':
-            obj_orig_w = 17.5 #cm
-            obj_orig_h = 17.5 #cm
-            #obj_orig_d = 1 #cm
-            obj_type_id = 1
-        if obj == 'medkit_far':
+        if obj == 'medbox':
             obj_orig_w = 17.5 #cm
             obj_orig_h = 17.5 #cm
             #obj_orig_d = 1 #cm
@@ -221,8 +228,8 @@ class object_detection:
         P.point.z = dist
 
         #Transform Point into map coordinates
-        #trans_pt = self.tl.transformPoint('/map', P)
-        trans_pt = P #TEST: DELETE THIS STUFF, and F*CK the mapping sh*t
+        trans_pt = self.tl.transformPoint('/map', P)
+        #trans_pt = P #TEST: DELETE THIS STUFF, and F*CK the mapping sh*t
         if not self.obj_exists(trans_pt, obj_type_id):
             self.publish_obj(trans_pt, obj_type_id, obj, log=True)
 
