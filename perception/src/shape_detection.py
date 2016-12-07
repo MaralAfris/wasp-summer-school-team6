@@ -80,6 +80,9 @@ class object_detection:
         self.kernel = np.ones((4,4), np.uint8) #Kernel for erosion and dilatation
         self.clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8)) #Clahe equalization
 
+        self.frame_cnt = 0
+        self.frame_skip = 3
+        
         self.jumpOver = 1
 
     #Callback function for subscribed image
@@ -87,6 +90,12 @@ class object_detection:
         self.jumpOver=self.jumpOver+1
         self.jumpOver=self.jumpOver%20
         if self.jumpOver==1:
+            #Only process the self.img_skip frame
+            if self.frame_cnt < self.frame_skip:
+                self.frame_cnt += 1
+                return
+            self.frame_cnt = 0
+
             np_arr = np.fromstring(data.data, np.uint8)
             #The following is no longer named CV_LOAD_IMAGE_COLOR but CV_LOAD_COLOR. Works by defining it instead
             cv2.CV_LOAD_IMAGE_COLOR = 1
@@ -152,7 +161,6 @@ class object_detection:
                 self.calc_coord(pt[0], pt[1], wMedBox, hMedBox, 'medbox')
                 cv2.rectangle(img_for_presentation, pt, (pt[0]+wMedBox, pt[1]+hMedBox), (50,200,200), 2)
             #Display the captured image
-
             cv2.imshow("Original+detections",img_for_presentation)
             cv2.imshow("Filtered", filtered_h)
             cv2.waitKey(1)
