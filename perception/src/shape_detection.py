@@ -71,7 +71,8 @@ class object_detection:
             l.write('%s\t%s\t\t%s\t%s\t%s\n' %('Source', 'Object', 'mapX', 'mapY', 'mapZ'))
         #Load masks
         self.grayMedBox = cv2.imread(self.pathScript+'MedBox.png',0)
-        self.grayGreenBoy = cv2.imread(self.pathScript+'BlackPerson.png',0)
+        self.wGrayMedBox, self.hGrayMedBox = self.grayMedBox.shape[::-1]
+        self.minPxAllowed = 20
 
         self.body_cascade = cv2.CascadeClassifier(self.pathScript+'haarcascade_fullbody.xml')
         self.known_obj_map_list = [] #List containing detected objects
@@ -82,7 +83,7 @@ class object_detection:
 
         self.frame_cnt = 0
         self.frame_skip = 3
-        
+
         self.jumpOver = 1
 
     #Callback function for subscribed image
@@ -90,7 +91,7 @@ class object_detection:
         self.jumpOver=self.jumpOver+1
         self.jumpOver=self.jumpOver%20
         if self.jumpOver==1:
-            #Only process the self.img_skip frame
+            #Only process the self.frame_skip frame
             if self.frame_cnt < self.frame_skip:
                 self.frame_cnt += 1
                 return
@@ -149,17 +150,30 @@ class object_detection:
 
             filtered_hsv = cv2.bitwise_and(hsv, hsv, mask=redMask)
             (_, _, filtered_h) = cv2.split(filtered_hsv)
-            wMedBox, hMedBox = self.grayMedBox.shape[::-1]
-            medBoxMatchingResult=cv2.matchTemplate(filtered_h, self.grayMedBox, cv2.TM_CCOEFF_NORMED)
             if(self.modeIsDrone):
                 thresholdMedBox = 0.25
             else :
                 thresholdMedBox = 0.6
-            locMedBox = np.where(medBoxMatchingResult >= thresholdMedBox)
-            for pt in zip (*locMedBox[::-1]):
-                #print('found Medical Kit near!!')
-                self.calc_coord(pt[0], pt[1], wMedBox, hMedBox, 'medbox')
-                cv2.rectangle(img_for_presentation, pt, (pt[0]+wMedBox, pt[1]+hMedBox), (50,200,200), 2)
+
+            #Scale the pattern to find to optimize detection
+            for scale in np.linspace(0.2, 1.0, 10):
+                scaledMedBox = cv2.resize(self.grayMedBox, (0, 0), fx=scale, fy=scale)
+                wMedBox, hMedBox = scaledMedBox.shape[::-1]
+                #ratio = self.grayMedBox.shape[1] / scaledMedBox.shape[1]
+                #If the image is too small, break
+                if wMedBox < self.minPxAllowed or hMedBox < self.minPxAllowed:
+                    break
+
+                medBoxMatchingResult=cv2.matchTemplate(filtered_h, scaledMedBox,
+                                                       cv2.TM_CCOEFF_NORMED)
+                locMedBox = np.where(medBoxMatchingResult >= thresholdMedBox)
+                for pt in zip (*locMedBox[::-1]):
+                    #print('found Medical Kit near!!')
+                    self.calc_coord(pt[0], pt[1], wMedBox, hMedBox, 'medbox')
+                    cv2.rectangle(img_for_presentation, pt,
+                                  (pt[0]+wMedBox, pt[1]+hMedBox),
+                                  (50,200,200), 2)
+
             #Display the captured image
             cv2.imshow("Original+detections",img_for_presentation)
             cv2.imshow("Filtered", filtered_h)
@@ -214,8 +228,8 @@ class object_detection:
         P.point.z = dist
 
         #Transform Point into map coordinates
-        #trans_pt = self.tl.transformPoint('/map', P)
-        trans_pt = P #TEST: DELETE THIS STUFF, and F*CK the mapping sh*t
+        trans_pt = self.tl.transformPoint('/map', P)
+        #trans_pt = P #TEST: DELETE THIS STUFF, and F*CK the mapping sh*t
         if not self.obj_exists(trans_pt, obj_type_id):
             self.publish_obj(trans_pt, obj_type_id, obj, log=True)
 
