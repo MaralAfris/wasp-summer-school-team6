@@ -77,6 +77,10 @@ class object_detection:
         self.body_cascade = cv2.CascadeClassifier(self.pathScript+'haarcascade_fullbody.xml')
         self.known_obj_map_list = [] #List containing detected objects
         self.obj_map_margin = 10 #Margin to consider for avoiding repetitive objects
+
+        self.kernel = np.ones((4,4), np.uint8) #Kernel for erosion and dilatation
+        self.clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8)) #Clahe equalization
+
         self.jumpOver = 1
 
     #Callback function for subscribed image
@@ -93,17 +97,15 @@ class object_detection:
 
             #Do some filtering magic
             #Dilate and open image (join parts and reduce noise)
-            kernel = np.ones((4,4), np.uint8)
-            img_trans = cv2.morphologyEx(img_original, cv2.MORPH_OPEN, kernel)
-            img_trans = cv2.dilate(img_original, kernel, iterations=1)
+            img_trans = cv2.morphologyEx(img_original, cv2.MORPH_OPEN, self.kernel)
+            img_trans = cv2.dilate(img_original, self.kernel, iterations=1)
             #Median blur
             img_trans = cv2.medianBlur(img_trans, 3)
             #Equalize
             b, g, r, = cv2.split(img_trans)
-            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-            cb = clahe.apply(b)
-            cg = clahe.apply(g)
-            cr = clahe.apply(r)
+            cb = self.clahe.apply(b)
+            cg = self.clahe.apply(g)
+            cr = self.clahe.apply(r)
             #Threshold red (to enhance detection)
             #cr = cv2.compare(cr, np.uint8([90]), cv2.CMP_GE)
             #Merge final image
