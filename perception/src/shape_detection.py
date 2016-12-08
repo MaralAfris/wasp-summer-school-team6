@@ -20,6 +20,8 @@ from wasp_custom_msgs.msg import object_loc
 import tf
 
 import argparse
+import os
+import inspect
 
 class obj_map_item:
     def __init__(self, obj_type_id=None, map_x=0, map_y=0, map_z=0):
@@ -55,13 +57,36 @@ class object_detection:
         self.bridge = CvBridge()
         #Object to transform listener which will be used to transform the points from one coordinate system to other.
         self.tl = tf.TransformListener()
-        self.grayMedBoxSmall = cv2.imread('MedBox.png',0)#MB funkade med forsta bilden
-        self.grayMedBoxLarge = cv2.imread('MedBox100px.png',0)#MB funkade med forsta bilden
-        self.grayGreenBoy = cv2.imread('BlackPerson.png',0)
+        #Get the python code path to retrieve masks and write stuff
+        self.pathScript = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+        self.pathScript = self.pathScript + '/'
+        self.objCoordsLog = self.pathScript + 'obj_detected.log'
+        #Delete possible previous objects list file (if only one instance planned)
+        try:
+            os.remove(self.objCoordsLog)
+        except OSError:
+            pass
+        #Write file header
+        with open(self.objCoordsLog, 'w') as l:
+            l.write('%s\t%s\t\t%s\t%s\t%s\n' %('Source', 'Object', 'mapX', 'mapY', 'mapZ'))
+        #Load masks
+        self.grayMedBox = cv2.imread(self.pathScript+'MedBox.png',0)
+        self.wGrayMedBox, self.hGrayMedBox = self.grayMedBox.shape[::-1]
+        self.minPxAllowed = 20
 
-        self.body_cascade = cv2.CascadeClassifier('haarcascade_fullbody.xml')
+        self.body_cascade = cv2.CascadeClassifier(self.pathScript+'haarcascade_fullbody.xml')
         self.known_obj_map_list = [] #List containing detected objects
         self.obj_map_margin = 10 #Margin to consider for avoiding repetitive objects
+
+        self.kernel = np.ones((4,4), np.uint8) #Kernel for erosion and dilatation
+        self.clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8)) #Clahe equalization
+
+        self.frame_cnt = 0
+        self.frame_skip = 0
+
+        self.frame_number = 0 #Frame number to write to a file
+        self.save_frames = False #Save steps to files
+        self.show_frames = False #Show the results
         self.jumpOver = 1
 
     #Callback function for subscribed image
@@ -69,79 +94,108 @@ class object_detection:
         self.jumpOver=self.jumpOver+1
         self.jumpOver=self.jumpOver%20
         if self.jumpOver==1:
+            #Only process the self.frame_skip frame
+            if self.frame_cnt < self.frame_skip:
+                self.frame_cnt += 1
+                return
+            self.frame_cnt = 0
+
             np_arr = np.fromstring(data.data, np.uint8)
             #The following is no longer named CV_LOAD_IMAGE_COLOR but CV_LOAD_COLOR. Works by defining it instead
             cv2.CV_LOAD_IMAGE_COLOR = 1
             img_for_presentation = cv2.imdecode(np_arr, cv2.CV_LOAD_IMAGE_COLOR)
             img_original = cv2.copyMakeBorder(img_for_presentation,0,0,0,0,cv2.BORDER_REPLICATE)
-            #cv_image = self.bridge.imgmsg_to_cv2(data, 'bgr8')
-            #Create copy of captured image
-            #img_cpy = cv_image.copy()
-            #Color to HSV and Gray Scale conversion
-            hsv = cv2.cvtColor(img_original, cv2.COLOR_BGR2HSV)
-
-            #img = cv_image
             gray = cv2.cvtColor(img_original, cv2.COLOR_BGR2GRAY)
+
+            #Do some filtering magic
+            #Dilate and open image (join parts and reduce noise)
+            img_trans = cv2.morphologyEx(img_original, cv2.MORPH_OPEN, self.kernel)
+            img_trans = cv2.dilate(img_original, self.kernel, iterations=1)
+            #Median blur
+            img_trans = cv2.medianBlur(img_trans, 3)
+            #Equalize
+            b, g, r, = cv2.split(img_trans)
+            cb = self.clahe.apply(b)
+            cg = self.clahe.apply(g)
+            cr = self.clahe.apply(r)
+            #Threshold red (to enhance detection)
+            #cr = cv2.compare(cr, np.uint8([90]), cv2.CMP_GE)
+            #Merge final image
+            img_enhanced = cv2.merge((cb, cg, cr))
+
+            #Color to HSV
+            hsv = cv2.cvtColor(img_enhanced, cv2.COLOR_BGR2HSV)
+
+            #Detect people (Haar cascade)
             bodies = self.body_cascade.detectMultiScale(gray,1.3,5)
             for (x,y,w,h) in bodies:
                 #print('Found a person!')
                 self.calc_coord(w, h, w, h, 'person')
                 cv2.rectangle(img_for_presentation, (x,y), (x+w, y+h), (255,0,0), 2)
 
-            #Thresholds
-            # worked with one video for TB, but not the other:
-            # 0-7 70-220 70-250
-            # 190-255 20-255 20-255
+            #HSV Thresholds
             if(self.modeIsDrone):
-                lower_red_upper = np.array([0, 120, 65])#drone didn't use
-                #upper_red_upper = np.array([0, 100, 80])#drone didn't use
-                upper_red_upper = np.array([7, 220,220])#drone didn't use
-                lower_red_lower = np.array([140, 90, 80])#drone 140,40,80
-                #upper_red_lower = np.array([140, 90,80])#drone 190,200,230
-                upper_red_lower = np.array([190, 240,230])#drone 190,200,230
+                lower_red_upper = np.array([0, 120, 65])
+                upper_red_upper = np.array([7, 220,220])
+                lower_red_lower = np.array([140, 90, 80])
+                upper_red_lower = np.array([190, 240,230])
             else :
-                lower_red_upper = np.array([0, 120, 90])    #TB 0, 70, 70
-                #upper_red_upper = np.array([0, 120, 90])  #   TB 7, 220 200
-                upper_red_upper = np.array([7, 255, 255])  #   TB 7, 220 200
-                lower_red_lower = np.array([140, 90, 60])#TB 140, 30, 30
-                #upper_red_lower = np.array([140, 30, 30])#TB 255, 230,150
-                upper_red_lower = np.array([255, 240,255])#TB 255, 230,150
+                lower_red_upper = np.array([0, 100, 100])
+                upper_red_upper = np.array([10, 255, 255])
+                lower_red_lower = np.array([140, 100, 100])
+                upper_red_lower = np.array([179, 255, 255])
 
             # Threshold the HSV image to get only single color portions
             redMask_upper = cv2.inRange(hsv, lower_red_upper, upper_red_upper)
             redMask_lower = cv2.inRange(hsv, lower_red_lower, upper_red_lower)
             redMask = cv2.bitwise_or(redMask_upper, redMask_lower)
+            redMask = cv2.GaussianBlur(redMask, (3,3), 1)
 
-            red_cv_image = cv2.bitwise_and(img_original, img_original, mask=redMask)
-            cv_image_gray = cv2.cvtColor(red_cv_image, cv2.COLOR_BGR2GRAY)
-            wMedBoxSmall, hMedBoxSmall = self.grayMedBoxSmall.shape[::-1]
-            wMedBoxLarge, hMedBoxLarge = self.grayMedBoxLarge.shape[::-1]
-            medBoxSmallMatchingResult=cv2.matchTemplate(cv_image_gray, self.grayMedBoxSmall, cv2.TM_CCOEFF_NORMED)
-            medBoxLargeMatchingResult=cv2.matchTemplate(cv_image_gray, self.grayMedBoxLarge, cv2.TM_CCOEFF_NORMED)
+            filtered_hsv = cv2.bitwise_and(hsv, hsv, mask=redMask)
+            (_, _, filtered_h) = cv2.split(filtered_hsv)
             if(self.modeIsDrone):
-                thresholdMedBoxSmall = 0.43
-                thresholdMedBoxLarge = 0.25
+                thresholdMedBox = 0.25
             else :
-                thresholdMedBoxSmall = 0.25
-                thresholdMedBoxLarge = 0.25
-            locMedBoxSmall = np.where(medBoxSmallMatchingResult >=thresholdMedBoxSmall)
-            locMedBoxLarge = np.where(medBoxLargeMatchingResult >=thresholdMedBoxLarge)
-            for pt in zip (*locMedBoxSmall[::-1]):
-                #print('found Medical Kit far away!!')
-                self.calc_coord(pt[0], pt[1], wMedBoxSmall, hMedBoxSmall, 'medkit_far')
-                cv2.rectangle(img_for_presentation, pt, (pt[0]+wMedBoxSmall, pt[1]+hMedBoxSmall), (0,255,255), 2)
-            for pt in zip (*locMedBoxLarge[::-1]):
-                #print('found Medical Kit near!!')
-                self.calc_coord(pt[0], pt[1], wMedBoxLarge, hMedBoxLarge, 'medkit_near')
-                cv2.rectangle(img_for_presentation, pt, (pt[0]+wMedBoxLarge, pt[1]+hMedBoxSmall), (50,200,200), 2)
-            #Display the captured image
+                thresholdMedBox = 0.6
 
-            #cv2.imshow("Red screen",red_cv_image)
-            #cv2.imshow("Blue screen",blue_cv_image)
-            #cv2.imshow("Green screen",green_cv_image)
-            cv2.imshow("img",img_for_presentation)
-            cv2.imshow("red",red_cv_image)
-            cv2.waitKey(1)
+            #Scale the pattern to find to optimize detection
+            for scale in np.linspace(0.2, 1.0, 10):
+                scaledMedBox = cv2.resize(self.grayMedBox, (0, 0), fx=scale, fy=scale)
+                wMedBox, hMedBox = scaledMedBox.shape[::-1]
+                #ratio = self.grayMedBox.shape[1] / scaledMedBox.shape[1]
+                #If the image is too small, break
+                if wMedBox < self.minPxAllowed or hMedBox < self.minPxAllowed:
+                    break
+
+                medBoxMatchingResult=cv2.matchTemplate(filtered_h, scaledMedBox,
+                                                       cv2.TM_CCOEFF_NORMED)
+                locMedBox = np.where(medBoxMatchingResult >= thresholdMedBox)
+                for pt in zip (*locMedBox[::-1]):
+                    #print('found Medical Kit near!!')
+                    self.calc_coord(pt[0], pt[1], wMedBox, hMedBox, 'medbox')
+                    cv2.rectangle(img_for_presentation, pt,
+                                  (pt[0]+wMedBox, pt[1]+hMedBox),
+                                  (50,200,200), 2)
+
+            #Save the captured images
+            if self.save_frames:
+                end_name = 'turtlebot_'
+                if self.modeIsDrone:
+                    end_name = 'drone_'
+                end_name += str(self.frame_number) + '.png'
+
+                cv2.imwrite('img_original_' + end_name, img_original)
+                cv2.imwrite('img_enhanced_' + end_name, img_enhanced)
+                cv2.imwrite('img_detect_' + end_name, img_for_presentation)
+                print('Writing images for frame %d' % self.frame_number)
+                self.frame_number += 1
+
+            #Display the captured image
+            if self.show_frames:
+                cv2.imshow("Original+detections",img_for_presentation)
+                cv2.imshow("Filtered", filtered_h)
+                cv2.waitKey(1)
+
 
     #Calculate coordinates according to picture size and stuff
     def calc_coord(self, x, y, w, h, obj):
@@ -157,12 +211,7 @@ class object_detection:
             focal_leng = 570.34222
 
         #Set properties per object detection type
-        if obj == 'medkit_near':
-            obj_orig_w = 17.5 #cm
-            obj_orig_h = 17.5 #cm
-            #obj_orig_d = 1 #cm
-            obj_type_id = 1
-        if obj == 'medkit_far':
+        if obj == 'medbox':
             obj_orig_w = 17.5 #cm
             obj_orig_h = 17.5 #cm
             #obj_orig_d = 1 #cm
@@ -198,8 +247,9 @@ class object_detection:
 
         #Transform Point into map coordinates
         trans_pt = self.tl.transformPoint('/map', P)
+        #trans_pt = P #TEST: DELETE THIS STUFF, and F*CK the mapping sh*t
         if not self.obj_exists(trans_pt, obj_type_id):
-            self.publish_obj(trans_pt, obj_type_id)
+            self.publish_obj(trans_pt, obj_type_id, obj, log=True)
 
     def obj_exists(self, map_pt, obj_type):
         '''
@@ -238,7 +288,7 @@ class object_detection:
 
         return obj_found
 
-    def publish_obj(self, map_pt, obj_type):
+    def publish_obj(self, map_pt, obj_type, obj_type_txt, log=False):
         '''
         Publishes the object coordinates according to the map
         '''
@@ -253,6 +303,18 @@ class object_detection:
         self.object_location_pub.publish(obj_info_pub)
         print('Published obj ID:%d at x:%d y:%d z:%d' %(obj_type, map_pt.point.x,
                                                         map_pt.point.y, map_pt.point.z))
+
+        #Write to logfile
+        if log:
+            src = 'Turtle'
+            if self.modeIsDrone:
+                src = 'Drone'
+            with open(self.objCoordsLog, 'a') as l:
+                l.write('%s\t%s\t\t%d\t%d\t%d\n' %(src,
+                                                 obj_type_txt,
+                                                 obj_info_pub.point.x,
+                                                 obj_info_pub.point.y,
+                                                 obj_info_pub.point.z))
 
 
 #Check validity of the mode argument provided
