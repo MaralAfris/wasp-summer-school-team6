@@ -206,13 +206,10 @@ class World(object):
             dist = edge.p1.dist(edge.p2)
             tdist = settings.plan['turtle_delay'] + dist / settings.plan['turtle_speed']
             ddist = settings.plan['drone_delay'] + dist / settings.plan['drone_speed']
-            dcdist = settings.plan['drone_delay'] + dist / settings.plan['drone_carry_speed']
             print_edge('move-duration', edge.p1, edge.p2, tdist)
             print_edge('move-duration', edge.p2, edge.p1, tdist)
             print_edge('fly-duration', edge.p1.as_air(), edge.p2.as_air(), ddist)
             print_edge('fly-duration', edge.p2.as_air(), edge.p1.as_air(), ddist)
-            print_edge('fly-carry-duration', edge.p1.as_air(), edge.p2.as_air(), dcdist)
-            print_edge('fly-carry-duration', edge.p2.as_air(), edge.p1.as_air(), dcdist)
         f.write('\n')
 
         for waypoint in self.waypoints:

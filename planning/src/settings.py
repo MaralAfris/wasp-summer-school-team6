@@ -3,42 +3,38 @@ mesh = dict(
         initial_min_dist = 0.4, # (meters)
 
         # minimum distance between created extra waypoints
-        mesh_min_dist = 3, # (meters)
+        mesh_min_dist = 0.5, # (meters)
 
         # minimum distance between two edges and edge to points
         # (edge is a walking path in the waypoint graph)
-        edge_min_dist = 1, # (meters)
+        edge_min_dist = 2, # (meters)
 
         # occupancy graph is padded to make sure turtlebot does not get stuck
         # 0.2 seems to be what rviz uses
-        padding_radius = 0.2, # (meters)
-
-        cost_radius = 0.6, # (meters)
+        padding_radius = 0.2 # (meters)
 )
 plan = dict(
         # set to True if pathing should allow movement in unexplored regions
-        # TODO use cost 
         walk_unknown = False,
 
         # turtlebot speed (m/s)
-        turtle_speed = 3,
+        turtle_speed = 2,
 
         # time before turtlebot starts moving (s)
-        turtle_delay = 2,
+        turtle_delay = 0.5,
 
         # drone speed (m/s)
-        drone_speed = 5,
+        drone_speed = 4,
 
         # time before drone starts moving (s)
-        drone_delay = 1,
-
-        # drone speed while carrying box (m/s)
-        drone_carry_speed = 0.5,
+        drone_delay = 0.2,
 
         # planner will search for optimal result.
         # will not work anyway for big problems, so set it to 0 then.
-        optimal_search = 60,
+        optimal_search = 0,
+
+        use_auction = False,
 
         # search time for suboptimal search, will run if optimal search fails.
-        suboptimal_search = 60
+        suboptimal_search = 2*60*60
 )
