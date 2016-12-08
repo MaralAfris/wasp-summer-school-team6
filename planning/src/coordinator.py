@@ -143,6 +143,7 @@ def init_plan():
 """
 #Init node
 def start(graph, actions):
+    """global drone_publisher"""
     #global pub_turtle, pub_drone
     #Initialize curnt node with some name
 
@@ -150,14 +151,16 @@ def start(graph, actions):
     rospy.init_node('planner')
     turtlebot_publisher = rospy.Publisher("/list_of_turtle_goals", PoseArray, queue_size = 1)
     drone_publisher = rospy.Publisher("/list_of_drone_goals", PoseArray, queue_size = 1)
-    time.sleep(4)
+    print "Starting to sleep!"
+    time.sleep(10)
     print "I am ready to move!"
 
     #pub_drone = rospy.Publisher("/list_of_drone_goals", PoseArray, queue_size = 1)
-    obj = Coordinator(actions, turtlebot_publisher, drone_publisher)
+    obj = Coordinator(actions, turtlebot_publisher, drone_publisher) # Comment this one back!!!
     #Subscribe to message published from goal_publisher about the goal accomplished
-    rospy.Subscriber("/turtle_goal_completed", PoseArray, obj.setGoalStatus)
-    rospy.Subscriber("/drone_goal_completed", PoseArray, obj.setGoalStatus)
+    rospy.Subscriber("/turtle_goal_completed", PoseArray, obj.setGoalStatus) # Comment this one back!!!
+    rospy.Subscriber("/drone_goal_completed", PoseArray, obj.setGoalStatus) # Comment this one back!!!
+    """rospy.Subscriber("/drone_goal_completed", PoseArray, testcallback)"""
     #Subscribe to message published from goal_publisher about the goal accomplished
     #rospy.Subscriber("/drone_goal_completed", Int16, drone_completed)
     #Sleep for a while to let all nodes Initialize
@@ -175,17 +178,35 @@ def start(graph, actions):
     moveTurtleBot(x,y, actionType,actionId, publisher)
     """
 
+    """x = 1.0
+    y = 0.0
+
+    moveDrone(x,y,0,15,drone_publisher)"""
+
     for action in graph.succ:
         action.execute(turtlebot_publisher, drone_publisher)
 
     #This keeps the  active till it is killed
     rospy.spin()
+"""
+def testcallback(data):
+    global drone_publisher
+    print "Completed the task!"
+    success = data.poses[0].position.z
+    actionId = data.poses[0].orientation.z
+    print success
+    print actionId
+    
+    x = 0.0
+    y = 0.0
+
+    moveDrone(x,y,0,16,drone_publisher)"""
 
 
 # A method that calls the publishing API and moves bot to location x,y,z
 # x,y are coordinates, z is suppose to be the type of the goal
 def moveTurtleBot(x,y,actionType, actionId, publisher):
-    print "move"
+    print "move turtlebot"
     newPoseArray = PoseArray()
     newPoseArray.header.frame_id = "map"
     newPoseArray.poses.append(Pose())
@@ -194,11 +215,26 @@ def moveTurtleBot(x,y,actionType, actionId, publisher):
     newPoseArray.poses[0].position.z = actionType;
     newPoseArray.poses[0].orientation.z = actionId;
 
+    # Publish the new list to the tb_path_publisher
+    # to instruct the robot to move
+    publisher.publish(newPoseArray)
 
+# A method that calls the publishing API and moves bot to location x,y,z
+# x,y are coordinates, z is suppose to be the type of the goal
+def moveDrone(x,y,actionType, actionId, publisher):
+    print "move drone"
+    newPoseArray = PoseArray()
+    newPoseArray.header.frame_id = "odom"
+    newPoseArray.poses.append(Pose())
+    newPoseArray.poses[0].position.x = x
+    newPoseArray.poses[0].position.y = y
+    newPoseArray.poses[0].position.z = actionType;
+    newPoseArray.poses[0].orientation.z = actionId;
 
     # Publish the new list to the tb_path_publisher
     # to instruct the robot to move
     publisher.publish(newPoseArray)
+
 
 class Coordinator(object):
 
@@ -234,3 +270,6 @@ class Coordinator(object):
         print "actionId: ", actionId
 
 # end moveTurtleBot(x,y,z,publisher)
+"""if __name__ == '__main__':
+    start()
+    rospy.spin()"""

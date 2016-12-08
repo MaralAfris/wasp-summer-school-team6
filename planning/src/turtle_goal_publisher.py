@@ -61,7 +61,8 @@ def turtle_action(data):
 
     # Action types from planner
     move = 0
-    deliver = 2
+    deliver = 1
+    handover = 3
 
     is_move = True
 
@@ -70,7 +71,7 @@ def turtle_action(data):
     action_type = data.poses[0].position.z
     actionId = data.poses[0].orientation.z
 
-    if action_type == deliver:
+    if not (action_type == move):
         is_move = False
         x_coord = previous_coords[0]
         y_coord = previous_coords[1]

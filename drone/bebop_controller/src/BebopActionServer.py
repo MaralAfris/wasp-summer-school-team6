@@ -9,7 +9,6 @@ from geometry_msgs.msg import PointStamped
 from bebop_controller.msg import *
 from actionlib import SimpleActionServer
 
-
 class BebopActionServer(object):
 
     def __init__(self):
@@ -77,7 +76,11 @@ class BebopActionServer(object):
         rospy.loginfo("/BebopActionServer/cb_move_base action_id %s", self.as_move.current_goal.get_goal_id().id)
         point_goal = PointStamped()
         point_goal.header = goal.target_pose.header
+        print point_goal.header
         point_goal.point = goal.target_pose.pose.position
+        print point_goal.point.x
+        print point_goal.point.y
+        print point_goal.point.z
         self.controller.set_goal(point_goal)
         rospy.sleep(1)
         self.handle_feedback(self.as_move)
@@ -113,6 +116,7 @@ class BebopActionServer(object):
 
     def send_result(self, actionserver, status, preempted):
         if status == ActionStatus.COMPLETED:
+            print "Completed!"
             actionserver.set_succeeded()
         else:
             if preempted:
