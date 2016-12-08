@@ -16,7 +16,7 @@ prev_x = 0.0
 prev_y = 0.0
 
 def init_action_clients():
-    global ac_takeoff, ac_movebase, ac_land, ac_load, ac_unload
+    global ac_takeoff, ac_movebase, ac_land
 
     ac_takeoff = SimpleActionClient('BebopTakeOffAction', BebopTakeOffAction)
     ac_takeoff.wait_for_server()
@@ -24,10 +24,6 @@ def init_action_clients():
     ac_movebase.wait_for_server()
     ac_land = SimpleActionClient('BebopLandAction', BebopLandAction)
     ac_land.wait_for_server()
-    ac_load = SimpleActionClient('BebopLoadAction', BebopLoadAction)
-    ac_load.wait_for_server()
-    ac_unload = SimpleActionClient('BebopUnloadAction', BebopUnloadAction)
-    ac_unload.wait_for_server()
 
 def takeoff():
     global ac_takeoff
@@ -37,21 +33,34 @@ def takeoff():
     success = (ac_takeoff.get_state() == GoalStatus.SUCCEEDED)
     return success
 
+def land():
+    global ac_land
+    land = BebopLandGoal()
+    ac_land.send_goal(land)
+    ac_land.wait_for_result()
+    success = (ac_land.get_state() == GoalStatus.SUCCEEDED)
+    return success
+
 def drone_action(data):
-    global ac_movebase, ac_load, ac_unload
+    global ac_movebase, ac_land, ac_takeoff
     global prev_x, prev_y
     global pub_completed
 
     # Action types from planner
     move = 0
+    deliver = 1
     pickup = 2
     handover = 3
+    land = 4
+    takeoff = 5
     
     # Extract the goal of the action
     x_coord = data.poses[0].position.x
     y_coord = data.poses[0].position.y
     action_type = data.poses[0].position.z
     actionId = data.poses[0].orientation.z
+
+    success = False
 
     goal = BebopMoveBaseGoal()
     goal.target_pose = PoseStamped()
@@ -61,16 +70,21 @@ def drone_action(data):
     if action_type == move:   
         goal.target_pose.pose.position.x = x_coord
         goal.target_pose.pose.position.y = y_coord
+        ac_movebase.send_goal(goal)
+        ac_movebase.wait_for_result()
+        success = (ac_movebase.get_state() == GoalStatus.SUCCEEDED)
+        prev_x = x_coord
+        prev_y = y_coord
+    elif action_type == takeoff:
+        success = takeoff()
+    elif action_type == land:
+        success = land()
     else:
         goal.target_pose.pose.position.x = prev_x
         goal.target_pose.pose.position.y = prev_y
-
-    ac_movebase.send_goal(goal)
-    ac_movebase.wait_for_result()
-    success = (ac_movebase.get_state() == GoalStatus.SUCCEEDED)
-
-    prev_x = x_coord
-    prev_y = y_coord
+        ac_movebase.send_goal(goal)
+        ac_movebase.wait_for_result()
+        success = (ac_movebase.get_state() == GoalStatus.SUCCEEDED)
     
     # Construct result message
     newPoseArray = PoseArray()
@@ -89,24 +103,16 @@ def drone_action(data):
 
 def start():
     global pub_completed
-    global ac_land
     try:
         rospy.init_node('drone_goal_publisher', anonymous=False)
         init_action_clients()
-        taken_off = takeoff()
-        if not taken_off:
-            print "Warning: Take off failed!"
 	    #Assigin publisher that publishes the index of the goal just accomplished
         pub_completed = rospy.Publisher('/drone_goal_completed', PoseArray, queue_size=1)
         rospy.Subscriber("/list_of_drone_goals", PoseArray, drone_action)
         rospy.spin()
 
     except rospy.ROSInterruptException:
-        print "Execution interrupted, landing drone"
-        land = BebopLandAction()
-        ac_land.send_goal(land)
-        ac_land.wait_for_result()
-        print "Successfully landed!"
+        print "Execution interrupted, quitting"
 
 if __name__ == '__main__':
     start()

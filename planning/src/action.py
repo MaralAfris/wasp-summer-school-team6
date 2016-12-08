@@ -236,6 +236,32 @@ class HandOver(Action):
         return str(self.index) + ': HandOver ' + \
                 self.agent1.name + ', ' + self.agent2.name + ', ' + self.box.name
 
+class Land(Action):
+    def __init__(self, args, duration, world):
+        super(Land, self).__init__(args, duration, world)
+        self.drone = world.agent(args[0])
+
+    def complete_action(self):
+        self.completed = True
+
+    def execute(self, publisher,drone_publisher):
+        x = 0.0
+        y = 0.0
+        moveDrone(x, y, 4, self.index, drone_publisher)
+
+class TakeOff(Action):
+    def __init__(self, args, duration, world):
+        super(TakeOff, self).__init__(args, duration, world)
+        self.drone = world.agent(args[0])
+
+    def complete_action(self):
+        self.completed = True
+
+    def execute(self, publisher,drone_publisher):
+        x = 0.0
+        y = 0.0
+        moveDrone(x, y, 5, self.index, drone_publisher)
+
 # Delays simulate the time it takes turtlebot/drone to generate new path.
 # We dont use this action during actual planning, but instead add it to
 # move cost, otherwise planning would be more complex.
