@@ -151,7 +151,7 @@ def start(graph, actions):
 
     #Initialize publisher to publish PoseArray
     rospy.init_node('planner')
-    #turtlebot_publisher = rospy.Publisher("/list_of_turtle_goals", PoseArray, queue_size = 1)
+    turtlebot_publisher = rospy.Publisher("/list_of_turtle_goals", PoseArray, queue_size = 1)
     drone_publisher = rospy.Publisher("/list_of_drone_goals", PoseArray, queue_size = 1)
     print "Starting to sleep!"
     time.sleep(10)
