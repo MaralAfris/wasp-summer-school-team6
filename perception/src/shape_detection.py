@@ -82,8 +82,11 @@ class object_detection:
         self.clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8)) #Clahe equalization
 
         self.frame_cnt = 0
-        self.frame_skip = 3
+        self.frame_skip = 0
 
+        self.frame_number = 0 #Frame number to write to a file
+        self.save_frames = False #Save steps to files
+        self.show_frames = False #Show the results
         self.jumpOver = 1
 
     #Callback function for subscribed image
@@ -174,10 +177,25 @@ class object_detection:
                                   (pt[0]+wMedBox, pt[1]+hMedBox),
                                   (50,200,200), 2)
 
+            #Save the captured images
+            if self.save_frames:
+                end_name = 'turtlebot_'
+                if self.modeIsDrone:
+                    end_name = 'drone_'
+                end_name += str(self.frame_number) + '.png'
+
+                cv2.imwrite('img_original_' + end_name, img_original)
+                cv2.imwrite('img_enhanced_' + end_name, img_enhanced)
+                cv2.imwrite('img_detect_' + end_name, img_for_presentation)
+                print('Writing images for frame %d' % self.frame_number)
+                self.frame_number += 1
+
             #Display the captured image
-            cv2.imshow("Original+detections",img_for_presentation)
-            cv2.imshow("Filtered", filtered_h)
-            cv2.waitKey(1)
+            if self.show_frames:
+                cv2.imshow("Original+detections",img_for_presentation)
+                cv2.imshow("Filtered", filtered_h)
+                cv2.waitKey(1)
+
 
     #Calculate coordinates according to picture size and stuff
     def calc_coord(self, x, y, w, h, obj):
