@@ -141,6 +141,8 @@ def init_plan():
            drone_goals.append(0.0, 0.0, rendezvous)
            drone_goals.append(0.0, 0.0, putdown) # action only for drone
 """
+
+"""count = 0"""
 #Init node
 def start(graph, actions):
     """global drone_publisher"""
@@ -149,7 +151,7 @@ def start(graph, actions):
 
     #Initialize publisher to publish PoseArray
     rospy.init_node('planner')
-    turtlebot_publisher = rospy.Publisher("/list_of_turtle_goals", PoseArray, queue_size = 1)
+    #turtlebot_publisher = rospy.Publisher("/list_of_turtle_goals", PoseArray, queue_size = 1)
     drone_publisher = rospy.Publisher("/list_of_drone_goals", PoseArray, queue_size = 1)
     print "Starting to sleep!"
     time.sleep(10)
@@ -178,18 +180,19 @@ def start(graph, actions):
     moveTurtleBot(x,y, actionType,actionId, publisher)
     """
 
-    """x = 1.0
+    """x = 0.0
     y = 0.0
-
-    moveDrone(x,y,0,15,drone_publisher)"""
+    # takeoff
+    moveDrone(x,y,5,10,drone_publisher)"""
 
     for action in graph.succ:
         action.execute(turtlebot_publisher, drone_publisher)
 
     #This keeps the  active till it is killed
     rospy.spin()
-"""
-def testcallback(data):
+
+"""def testcallback(data):
+    global count
     global drone_publisher
     print "Completed the task!"
     success = data.poses[0].position.z
@@ -197,11 +200,18 @@ def testcallback(data):
     print success
     print actionId
     
-    x = 0.0
+    x1 = 1.0
+    x2 = 0.0
     y = 0.0
-
-    moveDrone(x,y,0,16,drone_publisher)"""
-
+    count = count + 1
+    if count == 1:
+        moveDrone(x1,y,0,11,drone_publisher)
+    if count == 2:
+        moveDrone(x1,y,1,12,drone_publisher)
+    if count == 3:
+        moveDrone(x2,y,0,13,drone_publisher)
+    if count == 4:
+        moveDrone(x2,y,4,14,drone_publisher)"""
 
 # A method that calls the publishing API and moves bot to location x,y,z
 # x,y are coordinates, z is suppose to be the type of the goal

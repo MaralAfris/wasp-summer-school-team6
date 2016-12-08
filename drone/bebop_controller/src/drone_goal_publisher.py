@@ -11,6 +11,7 @@ from actionlib import SimpleActionClient
 from BebopActionServer import BebopActionServer
 from actionlib_msgs.msg import GoalStatus
 from geometry_msgs.msg import Pose, PoseArray, Point, Quaternion
+import time
 
 prev_x = 0.0
 prev_y = 0.0
@@ -67,7 +68,8 @@ def drone_action(data):
     goal.target_pose.header.frame_id = "odom"
     goal.target_pose.header.stamp = rospy.Time.now()
 
-    if action_type == move:   
+    if action_type == move:
+        print "Trying to move!"   
         goal.target_pose.pose.position.x = x_coord
         goal.target_pose.pose.position.y = y_coord
         ac_movebase.send_goal(goal)
@@ -76,16 +78,25 @@ def drone_action(data):
         prev_x = x_coord
         prev_y = y_coord
     elif action_type == takeoff:
-        success = takeoff()
+        print "Trying to take off!" 
+        takeoff = BebopTakeOffGoal()
+        ac_takeoff.send_goal(takeoff)
+        ac_takeoff.wait_for_result()
+        success = (ac_takeoff.get_state() == GoalStatus.SUCCEEDED)
     elif action_type == land:
-        success = land()
+        print "Trying to land!"
+        land = BebopLandGoal()
+        ac_land.send_goal(land)
+        ac_land.wait_for_result()
+        success = (ac_land.get_state() == GoalStatus.SUCCEEDED)
     else:
+        print "Trying to perform a fake action!"
         goal.target_pose.pose.position.x = prev_x
         goal.target_pose.pose.position.y = prev_y
         ac_movebase.send_goal(goal)
         ac_movebase.wait_for_result()
         success = (ac_movebase.get_state() == GoalStatus.SUCCEEDED)
-    
+        time.sleep(5)
     # Construct result message
     newPoseArray = PoseArray()
     newPoseArray.poses.append(Pose())
