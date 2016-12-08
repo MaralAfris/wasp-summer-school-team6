@@ -1,6 +1,7 @@
 import sys,re
 from world import World, Box, Agent, Person, Waypoint
 import settings
+from coordinator import *
 
 def parse_plan(plan_file, world):
     actions = []
@@ -147,6 +148,13 @@ class Move(Action):
     def format(self):
         return str(self.index) + ': Move ' + self.agent.name + ', ' + self.start.name + ', ' + self.to.name
 
+    def execute(self, turtlebot_publisher, drone_publisher):
+        x,y = self.to.point
+        if self.agent.agent_type == "turtlebot":
+            moveTurtleBot(x, y, 0, self.index, turtlebot_publisher)
+        else:
+            moveTurtleBot(x, y, 0, self.index, drone_publisher)
+
 class Deliver(Action):
     def __init__(self, args, duration, world):
         super(Deliver, self).__init__(args, duration, world)
@@ -168,6 +176,13 @@ class Deliver(Action):
         return str(self.index) + ': Deliver ' + \
                 self.agent.name + ', ' + self.box.name + ', ' + self.person.name
 
+    def execute(self, turtlebot_publisher, drone_publisher):
+        x,y = self.to.point
+        if self.agent.agent_type == "turtlebot":
+            moveTurtleBot(x, y, 2, self.index, turtlebot_publisher)
+        else:
+            moveTurtleBot(x, y, 2, self.index, drone_publisher)
+
 class PickUp(Action):
     def __init__(self, args, duration, world):
         super(PickUp, self).__init__(args, duration, world)
@@ -186,6 +201,10 @@ class PickUp(Action):
     def format(self):
         return str(self.index) + ': PickUp ' + \
                 self.agent.name + ', ' + self.box.name
+
+    def execute(self, publisher,drone_publisher):
+        # TODO impement me!
+        pass
 
 class HandOver(Action):
     def __init__(self, args, duration, world):
@@ -208,8 +227,12 @@ class HandOver(Action):
         return str(self.index) + ': HandOver ' + \
                 self.agent1.name + ', ' + self.agent2.name + ', ' + self.box.name
 
+    def execute(self, publisher,drone_publisher):
+        # TODO impement me!
+        pass
+
 # Delays simulate the time it takes turtlebot/drone to generate new path.
-# We dont use this action during actual planning, but instead add it to 
+# We dont use this action during actual planning, but instead add it to
 # move cost, otherwise planning would be more complex.
 # This action is only used during simulation.
 class PathPlanning(Action):

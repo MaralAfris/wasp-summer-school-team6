@@ -23,9 +23,9 @@ class GoToPose():
 	self.move_base.wait_for_server(rospy.Duration(9))
 
     def goto(self, pos, quat):
-
         # Send a goal
         self.goal_sent = True
+
 	goal = MoveBaseGoal()
 	goal.target_pose.header.frame_id = 'map'
 	goal.target_pose.header.stamp = rospy.Time.now()
@@ -56,61 +56,36 @@ class GoToPose():
         rospy.loginfo("Stop")
         rospy.sleep(1)
 
-def turtle_action(data):
+def drone_action(data):
     global previous_coords
-
-    # Action types from planner
-    move = 0
-    pickup = 1
-    deliver = 2
-
-    is_move = True
 
     x_coord = data.poses[0].position.x
     y_coord = data.poses[0].position.y
     action_type = data.poses[0].position.z
     actionId = data.poses[0].orientation.z
 
-    if action_type == deliver:
-        is_move = False
-        x_coord = previous_coords[0]
-        y_coord = previous_coords[1]
-
+    is_move = True
     moveToAcoordinate(x_coord, y_coord, is_move, actionId)
-
-    previous_coords[0] = x_coord
-    previous_coords[1] = y_coord
 
 # a function that moves the turtlebot to a x,y location
 def moveToAcoordinate(coorX, coorY, is_move, actionId):
     global pub_completed
     try:
-        navigator = GoToPose()
-
-        # Customize the following values so they are appropriate for your location
-        position = {'x': coorX, 'y' : coorY}
-        quaternion = {'r1' : 0.000, 'r2' : 0.000, 'r3' : 0.000, 'r4' : 1.000}
-
-        if is_move == False:
-            # Spin to represent a deliver
-            quaternion = {'r1' : 0.000, 'r2' : 0.000, 'r3' : 0.000, 'r4' : -1.000}
-
-        rospy.loginfo("Go to (%s, %s) pose", position['x'], position['y'])
-        
-        success = navigator.goto(position, quaternion)
-
+        #navigator = GoToPose()
+        #TODO implement the actual move method
+        reached = True;
         # construct a return possArray
         newPoseArray = PoseArray()
         newPoseArray.poses.append(Pose())
         newPoseArray.poses[0].orientation.z = actionId;
 
-        if success:
+        if reached:
             rospy.loginfo("Hooray, reached the desired pose")
             newPoseArray.poses[0].position.z = 0;
             pub_completed.publish(newPoseArray)
 
         else:
-            rospy.loginfo("The base failed to reach the desired pose")
+            rospy.loginfo("The drone failed to reach the desired pose")
             newPoseArray.poses[0].position.z = -1;
             pub_completed.publish(newPoseArray)
 
@@ -122,10 +97,11 @@ def moveToAcoordinate(coorX, coorY, is_move, actionId):
 
 def start():
     global pub_completed
-    rospy.init_node('turtle_goal_publisher', anonymous=False)
+    rospy.init_node('drone_goal_publisher', anonymous=False)
 	#Assigin publisher that publishes the index of the goal just accomplished
-    pub_completed = rospy.Publisher('/turtle_goal_completed', PoseArray, queue_size=1)
-    rospy.Subscriber("/list_of_turtle_goals", PoseArray, turtle_action)
+    pub_completed = rospy.Publisher('/drone_goal_completed', PoseArray, queue_size=1)
+    rospy.Subscriber("/list_of_drone_goals", PoseArray, drone_action)
+
     rospy.spin()
 
 if __name__ == '__main__':

@@ -4,6 +4,7 @@ import settings
 from world import *
 from action import *
 from map import *
+import coordinator
 
 import subprocess,os,sys,inspect
 import inspect, os
@@ -41,7 +42,7 @@ def generate_plan(world, map):
             break
 
     if settings.plan['optimal_search'] > 0:
-        print("info: running optimal planning with yahsp3 for " + 
+        print("info: running optimal planning with yahsp3 for " +
             str(settings.plan['optimal_search']) + " secs.")
         arg = 'yahsp3 -v 1 -K 0.01,0.01 -t ' + str(settings.plan['optimal_search']) + \
                     ' -o ' + domain_file + ' -f ' + PROBLEM + ' -H ' + PLAN
@@ -56,7 +57,7 @@ def generate_plan(world, map):
     if out != 0:
         if settings.plan['optimal_search'] > 0:
             print("info: failed to find optimal plan [" + str(out) + "]")
-        print("info: running heuristic suboptimal planning with yahsp3 for " + 
+        print("info: running heuristic suboptimal planning with yahsp3 for " +
                 str(settings.plan['suboptimal_search']) + " secs.")
         arg = 'yahsp3 -N -y 1 -v 1 -K 0.01,0.01 -t ' + \
                 str(settings.plan['suboptimal_search']) + ' -o ' + domain_file + ' -f ' + \
@@ -191,7 +192,7 @@ def wp_cost(world, map):
     return shortest_path(matrix, directed = False)
 
 if __name__ == "__main__":
-    
+
     use_old = False
     if len(sys.argv) > 1:
         print("info: using old plan")
@@ -217,3 +218,5 @@ if __name__ == "__main__":
 
     actions = parse_plan(planner_file, world)
     graph = construct_graph(actions, world)
+
+    coordinator.start(graph, actions)

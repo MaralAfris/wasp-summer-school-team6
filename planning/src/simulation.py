@@ -3,7 +3,7 @@
 from world import *
 from action import *
 from map import *
-from planner import *
+from planner2 import *
 
 from copy import *
 

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
-  <name>opencv</name>
-  <version>0.1.2</version>
+  <name>perception</name>
+  <version>0.2.0</version>
   <description>A package that provides a ROS wrapper for the apriltags C++ package</description>
 
   <maintainer email="mwills@wpi.edu">Mitchell Wills</maintainer>
