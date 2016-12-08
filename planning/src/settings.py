@@ -3,7 +3,7 @@ mesh = dict(
         initial_min_dist = 0.1, # (meters)
 
         # minimum distance between created extra waypoints
-        mesh_min_dist = 1, # (meters)
+        mesh_min_dist = 3, # (meters)
 
         # minimum distance between two edges and edge to points
         # (edge is a walking path in the waypoint graph)

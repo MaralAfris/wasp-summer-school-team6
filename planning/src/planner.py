@@ -198,18 +198,14 @@ if __name__ == "__main__":
         print("info: using old plan")
         use_old = True
 
-    #initial_state_json = '../../data/mapToG2_simple.json'
-    initial_state_json = '../../data/mapToG2_big.json'
-    grid = OccupancyGrid.from_pgm('../../data/mapToG2')
-    #initial_state_json = '../../data/willow-full_big.json'
-    #grid = OccupancyGrid.from_pgm('../../data/willow-full')
+    initial_state_json = '../../data/mapToDemo3.json'
+    grid = OccupancyGrid.from_pgm('../../data/mapToDemo3')
 
     world = World.from_json(initial_state_json)
 
     map = Map(grid, world.points())
 
     world.add_map_info(map)
-
 
     if not use_old:
         planner_file = generate_plan(world, map)

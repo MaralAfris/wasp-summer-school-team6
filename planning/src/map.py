@@ -575,12 +575,11 @@ def a_star_search(grid, start, goal, diagonal = True):
 
 if __name__ == "__main__":
     from world import World
-    #grid = OccupancyGrid.from_pgm('../../data/mapToDemo3')
-    #w = World.from_json('../../data/mapToDemo3.json')
+    grid = OccupancyGrid.from_pgm('../../data/mapToDemo3')
+    w = World.from_json('../../data/mapToDemo3.json')
 
-    grid = OccupancyGrid.from_pgm('../../data/willow-full')
-    #grid.plot()
-    w = World.from_json('../../data/willow-full_big.json')
+    #grid = OccupancyGrid.from_pgm('../../data/willow-full')
+    #w = World.from_json('../../data/willow-full_big.json')
 
     x,y = grid.grid.shape
     points = []

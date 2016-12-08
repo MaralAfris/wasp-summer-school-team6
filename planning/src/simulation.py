@@ -217,10 +217,10 @@ if __name__ == "__main__":
         print("info: using old plan")
         use_old = True
 
-    initial_state_json = '../../data/mapToDemo3_multi.json'
-    grid = OccupancyGrid.from_pgm('../../data/mapToDemo3')
-    #initial_state_json = '../../data/willow-full_big.json'
-    #grid = OccupancyGrid.from_pgm('../../data/willow-full')
+    #initial_state_json = '../../data/mapToDemo3_multi.json'
+    #grid = OccupancyGrid.from_pgm('../../data/mapToDemo3')
+    initial_state_json = '../../data/willow-full_big.json'
+    grid = OccupancyGrid.from_pgm('../../data/willow-full')
 
     world = World.from_json(initial_state_json)
 
@@ -262,18 +262,22 @@ if __name__ == "__main__":
     plt.ion()
     dpi = 96
     dt = 0.04 # 25fps
+    frame_skip = 25 # down-sample to 1fps, ie. 25x
     fig = plt.figure(figsize=(1920/dpi,1080/dpi), dpi=dpi, frameon=False)
     fig.set_size_inches(1920/dpi,1080/dpi)
     ax = fig.gca()
 
-
+    skipped = 0
     while len(sim.current_actions) > 0:
         ax.cla()
         ax.set_xlim(xlim)
         ax.set_ylim(ylim)
         map.plot(show=False,nodes=False)
         sim.tick(dt)
-        sim.draw(map, fig, ax)
+        if frame_skip <= 0 or skipped == frame_skip:
+            sim.draw(map, fig, ax)
+            skipped = 0
+        skipped += 1
         t = round(sim.time,2)
         ststr = str(int(t)).zfill(4)
         msstr = '%.2f' % (t-int(t))
