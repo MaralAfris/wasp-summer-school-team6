@@ -8,11 +8,11 @@
 		{"name":"greyframe","location":[-0.891,-4.75],"free":true},
 		{"name":"longwood","location":[-3.00,-3.06],"free":true},
 		{"name":"brownbox","location":[-1.28,-1.35],"free":true},
-		{"name":"blackbox","location":[-0.807,0.523],"free":true},
+		{"name":"blackbox","location":[-0.807,0.523],"free":true}
 	],
 	"persons": [
-		{"name":"blacktrump","location":[-1.33,0.523],"handled":false}
-		{"name":"blueapril","location":[-1.80,-5.23],"handled":false}
+		{"name":"blacktrump","location":[-1.33,0.523],"handled":false},
+		{"name":"blueapril","location":[-1.80,-5.23],"handled":false},
 		{"name":"bluealone","location":[-0.192,0.523],"handled":false}
 	]
 }
