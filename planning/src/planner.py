@@ -10,8 +10,16 @@ import inspect, os
 
 PLAN = "_out.plan"
 PROBLEM = "_problem.pddl"
+ACTIONS = "_actions.plan"
 
 def generate_plan(world, map):
+    if settings.plan['use_auction']:
+        actions = generate_available_moves(world, map)
+        f = open(ACTIONS, 'w')
+        for a in actions:
+            f.write(a.pddl_format() + '\n')
+        f.close()
+
     abspath = os.path.abspath(inspect.getfile(inspect.currentframe()))
     script_dir = os.path.dirname(abspath)
     if os.path.isfile(PROBLEM):
@@ -35,8 +43,11 @@ def generate_plan(world, map):
     if settings.plan['optimal_search'] > 0:
         print("info: running optimal planning with yahsp3 for " + 
             str(settings.plan['optimal_search']) + " secs.")
-        out = subprocess.call('yahsp3 -v 0 -K 0.01,0.01 -t ' + str(settings.plan['optimal_search']) + 
-                ' -o ' + domain_file + ' -f ' + PROBLEM + ' -H ' + PLAN, shell = True)
+        arg = 'yahsp3 -v 1 -K 0.01,0.01 -t ' + str(settings.plan['optimal_search']) + \
+                    ' -o ' + domain_file + ' -f ' + PROBLEM + ' -H ' + PLAN
+        if settings.plan['use_auction']:
+            arg += ' -z ' + ACTIONS
+        out = subprocess.call(arg, shell = True)
     else:
         out = -1
 
@@ -47,9 +58,12 @@ def generate_plan(world, map):
             print("info: failed to find optimal plan [" + str(out) + "]")
         print("info: running heuristic suboptimal planning with yahsp3 for " + 
                 str(settings.plan['suboptimal_search']) + " secs.")
-        out = subprocess.call('yahsp3 -N -y 1 -v 0 -K 0.01,0.01 -t ' + 
-                str(settings.plan['suboptimal_search']) + ' -o ' + domain_file + ' -f ' +
-                PROBLEM + ' -H ' + PLAN + " > /dev/null", shell = True)
+        arg = 'yahsp3 -N -y 1 -v 1 -K 0.01,0.01 -t ' + \
+                str(settings.plan['suboptimal_search']) + ' -o ' + domain_file + ' -f ' + \
+                PROBLEM + ' -H ' + PLAN
+        if settings.plan['use_auction']:
+            arg += ' -z ' + ACTIONS
+        out = subprocess.call(arg, shell = True)
         # search for latest plan in the list
         for i in xrange(1,sys.maxint):
             f = PLAN+"."+str(i)
@@ -65,6 +79,117 @@ def generate_plan(world, map):
 
     return planner_file
 
+def generate_available_moves(world, map):
+    # assign boxes to persons
+    # assign boxes and turtlebots to persons
+    # assign drones to hand-overs
+
+    mworld = deepcopy(world)
+    points = mworld.points()
+    costs = wp_cost(mworld, map)
+
+    for agent in mworld.agents:
+        agent.acum_cost = 0
+
+    action_list = set()
+
+    for person in filter(lambda x: not x.handled, mworld.persons):
+        pp = person.location.point
+        pi = points.index(pp)
+
+        persons_box = None
+        dist = np.inf
+        # find closests box
+        for box in filter(lambda x: x.free, mworld.boxes):
+            bp = box.location.point
+            bi = points.index(bp)
+            d = costs[bi,pi]
+            if d < dist:
+                persons_box = box
+                dist = d
+        
+        box = persons_box
+        box.free = False
+        bp = box.location.point
+        bi = points.index(bp)
+        # find closests turtlebot to box
+
+        dist = np.inf
+        persons_turtlebot = None
+        for turtlebot in filter(lambda x: x.agent_type == 'turtlebot', mworld.agents):
+            tp = turtlebot.location.point
+            ti = points.index(tp)
+            d = costs[ti,bi] + turtlebot.acum_cost
+            if d < dist:
+                persons_turtlebot = turtlebot
+                dist = d
+
+        turtlebot = persons_turtlebot
+        turtlebot.acum_cost += dist - turtlebot.acum_cost
+        # assign turtlebot to person
+
+        # find drone closest to box
+        dist = np.inf
+        drone_box = None
+        for drone in filter(lambda x: x.agent_type == 'drone', mworld.agents):
+            dp = drone.location.point
+            di = points.index(dp)
+            d = costs[di,bi] + drone.acum_cost
+            if d < dist:
+                drone_box = drone 
+                dist = d
+
+        drone_box.acum_cost += dist - drone_box.acum_cost
+        action_list.add(PickUp([drone_box.name, box.name, box.location.name + '_air', box.location.name], 0, mworld))
+        #action_list.add(HandOver([turtlebot.name, drone_box.name, box.name, box.location.name + '_air', box.location.name], 0, mworld))
+        action_list.add(HandOver([drone_box.name, turtlebot.name, box.name, box.location.name + '_air', box.location.name], 0, mworld))
+
+        # find drone clostest to person
+        dist = np.inf
+        drone_person = None
+        for drone in filter(lambda x: x.agent_type == 'drone', mworld.agents):
+            dp = drone.location.point
+            di = points.index(dp)
+            d = costs[di,pi] + drone.acum_cost
+            if d < dist:
+                drone_person = drone 
+                dist = d
+
+        drone_person.acum_cost += dist - drone_person.acum_cost
+        action_list.add(HandOver(
+            [turtlebot.name, drone_person.name, box.name, person.location.name + '_air', person.location.name], 0, mworld))
+        action_list.add(Deliver(
+            [drone_person.name, box.name, person.location.name + '_air', person.location.name, person.name], 0, mworld))
+        
+        drone_box.location = box.location
+        drone_person.location = person.location
+        turtlebot.location = person.location
+
+    for edge in mworld.edges:
+        for turtlebot in filter(lambda x: x.agent_type == 'turtlebot', mworld.agents):
+            action_list.add(Move([turtlebot.name, edge.p1.name, edge.p2.name], 0, mworld))
+            action_list.add(Move([turtlebot.name, edge.p2.name, edge.p1.name], 0, mworld))
+        for drone in filter(lambda x: x.agent_type == 'drone', mworld.agents):
+            action_list.add(Move([drone.name, edge.p1.name + '_air', edge.p2.name + '_air'], 0, mworld))
+            action_list.add(Move([drone.name, edge.p2.name + '_air', edge.p1.name + '_air'], 0, mworld))
+    return action_list
+
+def wp_cost(world, map):
+    points = world.points()
+    from scipy.sparse import dok_matrix, csr_matrix
+    cs_graph = dok_matrix((len(points), len(points)))
+    for i,wp1 in enumerate(points):
+        cs_graph[i,i] = 0
+        for neighbor in map.neighbors[i]:
+            wp2 = points[neighbor]
+            d = np.hypot(wp1[0]-wp2[0], wp1[1]-wp2[1])
+            cs_graph[i,neighbor] = d
+            cs_graph[neighbor,i] = d
+
+    from scipy.sparse.csgraph import shortest_path
+    matrix = csr_matrix(cs_graph)
+    return shortest_path(matrix, directed = False)
+
 if __name__ == "__main__":
     
     use_old = False
@@ -72,7 +197,8 @@ if __name__ == "__main__":
         print("info: using old plan")
         use_old = True
 
-    initial_state_json = '../../data/mapToG2_simple.json'
+    #initial_state_json = '../../data/mapToG2_simple.json'
+    initial_state_json = '../../data/mapToG2_big.json'
     grid = OccupancyGrid.from_pgm('../../data/mapToG2')
     #initial_state_json = '../../data/willow-full_big.json'
     #grid = OccupancyGrid.from_pgm('../../data/willow-full')
@@ -83,6 +209,7 @@ if __name__ == "__main__":
 
     world.add_map_info(map)
 
+
     if not use_old:
         planner_file = generate_plan(world, map)
     else:
@@ -90,14 +217,3 @@ if __name__ == "__main__":
 
     actions = parse_plan(planner_file, world)
     graph = construct_graph(actions, world)
-    for a in actions:
-        print(a.format())
-
-    world.to_json('_before.json')
-
-    # Execute some actions for funsies
-    for action in graph.succ:
-        action.complete_action()
-
-    world.to_json('_after.json')
-

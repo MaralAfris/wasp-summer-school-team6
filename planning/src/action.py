@@ -52,7 +52,7 @@ def add_delays(actions, world):
                 dur = settings.plan['turtle_delay']
             else:
                 dur = settings.plan['drone_delay']
-            d = Delay(action.args, dur, world)
+            d = PathPlanning(action.args, dur, world)
             d.index = index
             action_copy.append(d)
             index += 1
@@ -84,7 +84,7 @@ def from_plan(line, world):
             return Deliver(args, duration, world)
         elif action == 'pick-up':
             return PickUp(args, duration, world)
-        elif action == 'hand-over':
+        elif action == 'hand-over'or action == 'hand-over-2':
             return HandOver(args, duration, world)
         else:
             raise Exception('unknown action: ' + action)
@@ -109,16 +109,20 @@ class Action(object):
     def has_symbol(self, s):
         return s in self.symbols
 
-    def format(self):
-        deps = []
-        for e in self.pre:
-            deps.append(str(e.index))
+    def get_args(self):
+        return ' '.join(args)
 
-        return str(self.index) + ' [' + ', '.join(deps) + '] ' + \
-                self.__class__.__name__ + ' ' + ', '.join(self.args)
+    def pddl_format(self):
+        return '0: (' + self.pddl_name() + ' ' + ' '.join(self.args) + ')'
 
     def complete_action(self):
         pass
+
+    def __eq__(x, y):
+        return isinstance(y, x.__class__) and ' '.join(x.args) == ' '.join(y.args)
+
+    def __hash__(self):
+      return hash(self.__class__.__name__ + ' ' + ' '.join(self.args))
 
 class Root(Action):
     def __init__(self, world):
@@ -135,6 +139,14 @@ class Move(Action):
         self.agent.location = self.to
         self.completed = True
 
+    def pddl_name(self):
+        if self.agent.agent_type == 'drone':
+            return 'fly'
+        return 'move'
+
+    def format(self):
+        return str(self.index) + ': Move ' + self.agent.name + ', ' + self.start.name + ', ' + self.to.name
+
 class Deliver(Action):
     def __init__(self, args, duration, world):
         super(Deliver, self).__init__(args, duration, world)
@@ -149,6 +161,13 @@ class Deliver(Action):
         self.person.handled = True
         self.completed = True
 
+    def pddl_name(self):
+        return 'deliver'
+
+    def format(self):
+        return str(self.index) + ': Deliver ' + \
+                self.agent.name + ', ' + self.box.name + ', ' + self.person.name
+
 class PickUp(Action):
     def __init__(self, args, duration, world):
         super(PickUp, self).__init__(args, duration, world)
@@ -161,26 +180,45 @@ class PickUp(Action):
         self.box.free = False
         self.completed = True
 
+    def pddl_name(self):
+        return 'pick-up'
+
+    def format(self):
+        return str(self.index) + ': PickUp ' + \
+                self.agent.name + ', ' + self.box.name
+
 class HandOver(Action):
     def __init__(self, args, duration, world):
         super(HandOver, self).__init__(args, duration, world)
-        self.drone = world.agent(args[0])
-        self.turtlebot = world.agent(args[1])
+        self.agent1 = world.agent(args[0])
+        self.agent2 = world.agent(args[1])
         self.box = world.box(args[2])
 
     def complete_action(self):
-        self.turtlebot.carrying = self.drone.carrying
-        self.drone.carrying = None
+        self.agent2.carrying = self.agent1.carrying
+        self.agent1.carrying = None
         self.completed = True
+
+    def pddl_name(self):
+        if self.agent1.agent_type == 'drone':
+            return 'hand-over'
+        return 'hand-over-2'
+
+    def format(self):
+        return str(self.index) + ': HandOver ' + \
+                self.agent1.name + ', ' + self.agent2.name + ', ' + self.box.name
 
 # Delays simulate the time it takes turtlebot/drone to generate new path.
 # We dont use this action during actual planning, but instead add it to 
 # move cost, otherwise planning would be more complex.
 # This action is only used during simulation.
-class Delay(Action):
+class PathPlanning(Action):
     def __init__(self, args, duration, world):
-        super(Delay, self).__init__(args, duration, world)
+        super(PathPlanning, self).__init__(args, duration, world)
         self.agent = world.agent(args[0])
 
     def complete_action(self):
         self.completed = True
+
+    def format(self):
+        return str(self.index) + ': PathPlanning ' + self.agent.name
