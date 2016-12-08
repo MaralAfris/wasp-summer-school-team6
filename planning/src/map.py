@@ -306,16 +306,19 @@ class Map(object):
                     save = e1
 
                 if line_intersect(e1[0], e1[1], e2[0], e2[1]):
-                    removed_edges.add(prune)
-                    neighbors[prune[0]].remove(prune[1])
-                    neighbors[prune[1]].remove(prune[0])
-                    prunex = (g.coords(prune[0]), g.coords(prune[1]))
-                    savex = (g.coords(save[0]), g.coords(save[1]))
-                    print("info: pruning edge " + str(prunex[0]) + " to " + str(prunex[1]) + 
-                            ", overlapping " + str(savex[0]) + " to " + str(savex[1]))
+                    try:
+                        removed_edges.add(prune)
+                        neighbors[prune[0]].remove(prune[1])
+                        neighbors[prune[1]].remove(prune[0])
+                        prunex = (g.coords(prune[0]), g.coords(prune[1]))
+                        savex = (g.coords(save[0]), g.coords(save[1]))
+                        print("info: pruning edge " + str(prunex[0]) + " to " + str(prunex[1]) + 
+                                ", overlapping " + str(savex[0]) + " to " + str(savex[1]))
+                    except KeyError:
+                        pass
 
 
-    def plot(self, show=True):
+    def plot(self, show=True, nodes=True):
         import matplotlib.pyplot as plt
         grid = self.occupancy_grid
         px,py = grid.grid.shape
@@ -323,32 +326,31 @@ class Map(object):
 
         ext = [orig[0], orig[0]+py*grid.res(), orig[1], orig[1]+px*grid.res()]
 
-        ext = [orig[0], orig[0]+py*grid.res(), orig[1], orig[1]+px*grid.res()]
         plt.imshow(grid.grid,  interpolation='none', cmap=plt.cm.gray, \
                 aspect='equal', extent=ext)
         plt.imshow(self.pad_grid.grid,  interpolation='none', cmap=plt.cm.gray, \
-                aspect='equal', extent=ext, alpha=.5)
+                aspect='equal', extent=ext, alpha=.2)
 
-        initial_xs = []
-        initial_ys = []
-        xs = []
-        ys = []
-        #for node in self.initial_points:
-        for node in self.nodes:
-            if node in self.initial_points:
-                initial_xs.append(node[0])
-                initial_ys.append(node[1])
-            else:
-                xs.append(node[0])
-                ys.append(node[1])
+        if nodes:
+            initial_xs = []
+            initial_ys = []
+            xs = []
+            ys = []
+            for node in self.nodes:
+                if node in self.initial_points:
+                    initial_xs.append(node[0])
+                    initial_ys.append(node[1])
+                else:
+                    xs.append(node[0])
+                    ys.append(node[1])
 
-        plt.plot(xs, ys, 'go')
-        plt.plot(initial_xs, initial_ys,'ro')
+            plt.plot(xs, ys, 'go')
+            plt.plot(initial_xs, initial_ys,'ro')
 
-        for ix,node in enumerate(self.nodes):
-            for nbix in self.neighbors[ix]:
-                nb = self.nodes[nbix]
-                plt.plot([node[0], nb[0]], [node[1], nb[1]], color='0.1')
+            for ix,node in enumerate(self.nodes):
+                for nbix in self.neighbors[ix]:
+                    nb = self.nodes[nbix]
+                    plt.plot([node[0], nb[0]], [node[1], nb[1]], color='0.1')
         if show:
             plt.show()
 

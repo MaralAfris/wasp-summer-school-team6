@@ -44,20 +44,6 @@
                (at start (not (empty ?to)))
                (at start (occupied ?to))))
 
-;move drone with box (needs different name from 'move' to stop yahsp3 from segfaulting)
-(:durative-action fly 
-  :parameters (?drone - drone ?from ?to - waypoint ?box - box)
-  :duration (= ?duration (fly-carry-duration ?from ?to))
-  :condition (and (over all (carrying ?drone ?box))
-                  (over all (empty ?to))
-                  (at start (at ?drone ?from)))
-  :effect (and (at end (not (at ?drone ?from)))
-               (at end (at ?drone ?to))
-               (at end (not (occupied ?from)))
-               (at end (empty ?from))
-               (at start (not (empty ?to)))
-               (at start (occupied ?to))))
-
 ;move drone without box (needs different name from 'move' to stop yahsp3 from segfaulting)
 (:durative-action fly
   :parameters (?drone - drone ?from ?to - waypoint)
@@ -79,25 +65,13 @@
   :condition (and (at start (over ?air ?ground))
                   (over all (empty ?ground))
                   (over all (at ?drone ?air))
-                  (over all (at ?box ?ground))
+                  (at start (at ?box ?ground))
                   (over all (empty ?drone))
                   (over all (free ?box)))
-  :effect (and (at start (not (at ?box ?ground)))
+  :effect (and (at end (not (at ?box ?ground)))
                (at end (carrying ?drone ?box))
                (at end (not (empty ?drone)))
                (at end (not (free ?box)))))
-
-;(:durative-action pick-up
-  ;:parameters (?turtlebot - turtlebot ?box - box ?waypoint - waypoint)
-  ;:duration (= ?duration 10000)
-  ;:condition (and (over all (at ?turtlebot ?waypoint))
-                  ;(over all (at ?box ?waypoint))
-                  ;(over all (empty ?turtlebot))
-                  ;(over all (free ?box)))
-  ;:effect (and (at start (not (at ?box ?waypoint)))
-               ;(at end (carrying ?turtlebot ?box))
-               ;(at end (not (empty ?turtlebot)))
-               ;(at end (not (free ?box)))))
 
 (:durative-action hand-over
   :parameters (?drone - drone ?turtlebot - turtlebot ?box - box ?air - airwaypoint ?ground - waypoint)
@@ -112,6 +86,19 @@
                (at end (carrying ?turtlebot ?box))
                (at start (not (empty ?turtlebot)))))
 
+(:durative-action hand-over-2
+  :parameters (?turtlebot - turtlebot ?drone - drone ?box - box ?air - airwaypoint ?ground - waypoint)
+  :duration (= ?duration 1)
+  :condition (and (at start (over ?air ?ground))
+                  (over all (at ?drone ?air))
+                  (over all (at ?turtlebot ?ground))
+                  (at start (carrying ?turtlebot ?box))
+                  (at start (empty ?drone)))
+  :effect (and (at end (not (carrying ?turtlebot ?box)))
+               (at end (empty ?turtlebot))
+               (at end (carrying ?drone ?box))
+               (at start (not (empty ?drone)))))
+
 (:durative-action deliver
   :parameters (?drone - drone ?box - box ?air - airwaypoint ?ground - waypoint ?person - person)
   :duration (= ?duration 1)
@@ -123,18 +110,6 @@
   :effect (and (at start (not (carrying ?drone ?box)))
                (at end (empty ?drone))
                (at end (at ?box ?ground))
-               (at start (not (free ?box)))
-               (at end (handled ?person))))
-
-(:durative-action deliver
-  :parameters (?turtlebot - turtlebot ?box - box ?waypoint - waypoint ?person - person)
-  :duration (= ?duration 1)
-  :condition (and (at start (carrying ?turtlebot ?box))
-                  (over all (at ?turtlebot ?waypoint))
-                  (at start (at ?person ?waypoint)))
-  :effect (and (at start (not (carrying ?turtlebot ?box)))
-               (at end (empty ?turtlebot))
-               (at end (at ?box ?waypoint))
                (at start (not (free ?box)))
                (at end (handled ?person))))
 )
