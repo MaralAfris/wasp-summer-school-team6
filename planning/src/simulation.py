@@ -3,7 +3,7 @@
 from world import *
 from action import *
 from map import *
-from planner2 import *
+from planner import *
 
 from copy import *
 
@@ -160,12 +160,15 @@ class Simulation(World):
                     ys.append(p[1])
                 plt.plot(xs, ys, 'r-')
 
+        remap = dict((v, k) for k, v in map.moved_points.iteritems())
         for person in self.persons:
             color = 'r'
             if person.handled:
                 color = 'b'
             xy = person.location.point
-            xy = (xy[0]-0.25, xy[1]-0.25)
+            if xy in remap:
+                xy = remap[xy]
+            xy = (xy[0], xy[1])
             ax.add_artist(Circle(
                 xy=xy, color=color, radius=0.25))
             ax.add_artist(Circle(
@@ -178,7 +181,9 @@ class Simulation(World):
                 else:
                     color = '#5e2d1a'
                 xy = box.location.point
-                xy = (xy[0]-0.2, xy[1]-0.2)
+                if xy in remap:
+                    xy = remap[xy]
+                xy = (xy[0]-0.1, xy[1]-0.1)
                 ax.add_artist(Rectangle(
                     xy = xy, color=color, width=0.20, height=0.20))
                 ax.add_artist(Rectangle(
@@ -212,9 +217,8 @@ if __name__ == "__main__":
         print("info: using old plan")
         use_old = True
 
-    #initial_state_json = '../../data/mapToG2_simple.json'
-    initial_state_json = '../../data/mapToG2_big.json'
-    grid = OccupancyGrid.from_pgm('../../data/mapToG2')
+    initial_state_json = '../../data/mapToDemo3_multi.json'
+    grid = OccupancyGrid.from_pgm('../../data/mapToDemo3')
     #initial_state_json = '../../data/willow-full_big.json'
     #grid = OccupancyGrid.from_pgm('../../data/willow-full')
 
@@ -244,7 +248,7 @@ if __name__ == "__main__":
     ylim = (np.inf, -np.inf)
     for i in np.arange(0, px):
         for j in np.arange(0, py):
-            if not grid.is_occupied((i,j)):
+            if grid.is_free((i,j)):
                 coord = grid.coords((i,j))
                 xlim = (np.min((xlim[0], coord[0])), np.max((xlim[1], coord[0])))
                 ylim = (np.min((ylim[0], coord[1])), np.max((ylim[1], coord[1])))

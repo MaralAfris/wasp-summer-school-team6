@@ -57,7 +57,6 @@ class Map(object):
             print('warning: not enough waypoints')
             return
 
-
         # Next compute a* search for each path on Delaunay triangulation.
         triangles = Delaunay(points)
         nodes = {}       # pixel to coords: tuple->tuple
@@ -118,7 +117,7 @@ class Map(object):
                 for px,p in nodes.iteritems():
                     assert type(px) == tuple
                     assert type(p) == tuple
-                    assert len(neighbors[px]) > 0, "unreachable point " + str(p)
+                    #assert len(neighbors[px]) > 0, "unreachable point " + str(p)
                     assert px not in neighbors[px], "self neighbor " + str(p)
                     for nb in neighbors[px]:
                         assert px in neighbors[nb], "not undirected graph " + str(p)
@@ -324,12 +323,22 @@ class Map(object):
         px,py = grid.grid.shape
         orig = grid.meta['origin']
 
-        ext = [orig[0], orig[0]+py*grid.res(), orig[1], orig[1]+px*grid.res()]
-
-        plt.imshow(grid.grid,  interpolation='none', cmap=plt.cm.gray, \
+        ext = [orig[0], orig[0]+px*grid.res(), orig[1], orig[1]+py*grid.res()]
+        plt.imshow(grid.grid.T, interpolation='none', cmap=plt.cm.gray, \
                 aspect='equal', extent=ext)
-        plt.imshow(self.pad_grid.grid,  interpolation='none', cmap=plt.cm.gray, \
+        plt.imshow(self.pad_grid.grid.T, interpolation='none', cmap=plt.cm.gray, \
                 aspect='equal', extent=ext, alpha=.2)
+
+        #xs = []
+        #ys = []
+        #for i in range(0, px):
+            #for j in range(0, py):
+                #if grid.is_occupied((i,j)):
+                    #xs.append(grid.coords((i,j))[0])
+                    #ys.append(grid.coords((i,j))[1])
+
+        #plt.plot(xs,ys,'o')
+        #plt.show()
 
         if nodes:
             initial_xs = []
@@ -372,7 +381,6 @@ class OccupancyGrid(object):
         return 0 <= x < self.grid.shape[0] and 0 <= y < self.grid.shape[1]
 
     def cost(self, px1, px2):
-        # TODO use surrounding obstacles AND unexplored gets high cost
         a,b = px1
         c,d = px2
         return np.hypot(a-c, b-d)
@@ -459,14 +467,13 @@ class OccupancyGrid(object):
     def coords(self, px):
         orig = self.meta['origin']
         res = self.meta['resolution']
-        i_min = self.grid.shape[0]
-        j_min = self.grid.shape[1]
+        i_max,j_max = self.grid.shape
         x_min = orig[0]
         y_min = orig[1]
-        x_max = j_min*res+orig[0]
-        y_max = i_min*res+orig[1]
-        x = self._translate(px[1], 0, j_min, x_min, x_max)
-        y = self._translate(px[0], 0, i_min, y_max, y_min)
+        x_max = i_max*res+orig[0]
+        y_max = j_max*res+orig[1]
+        x = self._translate(px[0], 0, i_max, x_min, x_max)
+        y = self._translate(px[1], 0, j_max, y_max, y_min)
         x += res/2
         y -= res/2
         return (x,y)
@@ -474,20 +481,29 @@ class OccupancyGrid(object):
     def pixel(self, p):
         orig = self.meta['origin']
         res = self.meta['resolution']
-        i_min = self.grid.shape[0]
-        j_min = self.grid.shape[1]
+        i_max,j_max = self.grid.shape
         x_min = orig[0]
         y_min = orig[1]
-        x_max = j_min*res+orig[0]
-        y_max = i_min*res+orig[1]
-        p1 = self._translate(p[1], y_max, y_min, 0, i_min)
-        p2 = self._translate(p[0], x_min, x_max, 0, j_min)
+        x_max = i_max*res+orig[0]
+        y_max = j_max*res+orig[1]
+        p1 = self._translate(p[0], x_min, x_max, 0, i_max)
+        p2 = self._translate(p[1], y_max, y_min, 0, j_max)
         return (int(p1), int(p2))
 
     def _translate(self, src, src_min, src_max, res_min, res_max):
         return float((src - src_min)) / \
                 float((src_max - src_min)) * \
                 float((res_max - res_min)) + res_min
+
+    def plot(self):
+        import matplotlib.pyplot as plt
+        px,py = self.grid.shape
+        orig = self.meta['origin']
+
+        ext = [orig[0], orig[0]+px*self.res(), orig[1], orig[1]+py*self.res()]
+        plt.imshow(self.grid.T, interpolation='none', cmap=plt.cm.gray, \
+                aspect='equal', extent=ext)
+        plt.show()
 
 def reconstruct_path(came_from, start, goal):
     current = goal
@@ -559,12 +575,12 @@ def a_star_search(grid, start, goal, diagonal = True):
 
 if __name__ == "__main__":
     from world import World
-    grid = OccupancyGrid.from_pgm('../../data/mapToG2')
-    #w = World.from_json('../../data/mapToG2_simple.json')
-    w = World.from_json('../../data/mapToG2_big.json')
+    #grid = OccupancyGrid.from_pgm('../../data/mapToDemo3')
+    #w = World.from_json('../../data/mapToDemo3.json')
 
-    #grid = OccupancyGrid.from_pgm('../../data/willow-full')
-    #w = World.from_json('../../data/willow-full_big.json')
+    grid = OccupancyGrid.from_pgm('../../data/willow-full')
+    #grid.plot()
+    w = World.from_json('../../data/willow-full_big.json')
 
     x,y = grid.grid.shape
     points = []
