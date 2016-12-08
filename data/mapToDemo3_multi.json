@@ -1,7 +1,10 @@
 {
 	"agents": [
 		{"name":"turtle1","agent_type":"turtlebot","location":[-2.34,-3.37]},
-		{"name":"drone1","agent_type":"drone","location":[-2.15,-2.00]}
+		{"name":"turtle2","agent_type":"turtlebot","location":[-1.5,-2.7]},
+		{"name":"drone1","agent_type":"drone","location":[-2.15,-2.00]},
+		{"name":"drone2","agent_type":"drone","location":[-2.0,-0.7]},
+		{"name":"drone3","agent_type":"drone","location":[-0.6,-1.6]}
 	],
 	"boxes": [
 		{"name":"quadwood","location":[-2.26,-4.11],"free":true},
@@ -14,10 +17,5 @@
 		{"name":"blacktrump","location":[-1.45,0.523],"handled":false},
 		{"name":"blueapril","location":[-1.80,-5.23],"handled":false},
 		{"name":"bluealone","location":[-0.192,0.473],"handled":false}
-	],
-	"waypoints": [
-		{"name": "w1", "x":-0.6, "y":-1.6},
-		{"name": "w2", "x":-1.5, "y":-2.7},
-		{"name": "w3", "x":-2.0, "y":-0.7}
 	]
 }

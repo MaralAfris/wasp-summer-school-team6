@@ -1,13 +1,13 @@
 {
 	"agents": [
-		{"name":"turtle1","agent_type":"turtlebot","location":[38,50.5]},
-		{"name":"turtle2","agent_type":"turtlebot","location":[35,48]},
-		{"name":"turtle3","agent_type":"turtlebot","location":[2,12]},
-		{"name":"turtle4","agent_type":"turtlebot","location":[3,10]},
-		{"name":"drone1","agent_type":"drone","location":[34,48]},
-		{"name":"drone2","agent_type":"drone","location":[32,47]},
-		{"name":"drone3","agent_type":"drone","location":[7,11]},
-		{"name":"drone4","agent_type":"drone","location":[5,12]}
+		{"name":"turtle1","agent_type":"turtlebot","location":[45,42]},
+		{"name":"turtle2","agent_type":"turtlebot","location":[46,40.8]},
+		{"name":"turtle3","agent_type":"turtlebot","location":[9.6,16.4]},
+		{"name":"turtle4","agent_type":"turtlebot","location":[3.4,11.4]},
+		{"name":"drone1","agent_type":"drone","location":[49,42]},
+		{"name":"drone2","agent_type":"drone","location":[45,42]},
+		{"name":"drone3","agent_type":"drone","location":[7.8,9.5]},
+		{"name":"drone4","agent_type":"drone","location":[9.6,16.4]}
 	],
 	"boxes": [
 		{"name":"box1","location":"depot1","free":true},
@@ -42,30 +42,30 @@
 		{"name":"box30","location":"depot2","free":true}
 	],
 	"persons": [
-		{"name":"person1","location":[43,53],"handled":false},
-		{"name":"person2","location":[45,47],"handled":false},
-		{"name":"person3","location":[44,39],"handled":false},
-		{"name":"person4","location":[41,29],"handled":false},
-		{"name":"person5","location":[37,42],"handled":false},
-		{"name":"person6","location":[39,53],"handled":false},
-		{"name":"person7","location":[44,7],"handled":false},
-		{"name":"person8","location":[13,46],"handled":false},
-		{"name":"person9","location":[5,47],"handled":false},
-		{"name":"person10","location":[4,38],"handled":false},
-		{"name":"person11","location":[10,45],"handled":false},
-		{"name":"person12","location":[2.4,9],"handled":false},
-		{"name":"person13","location":[13,19],"handled":false},
-		{"name":"person14","location":[18,39],"handled":false},
-		{"name":"person15","location":[21,39],"handled":false},
-		{"name":"person16","location":[34,19],"handled":false},
-		{"name":"person17","location":[32,19],"handled":false},
-		{"name":"person18","location":[32,17],"handled":false},
-		{"name":"person19","location":[29,16],"handled":false},
-		{"name":"person20","location":[30,13],"handled":false}
+		{"name":"person1","location":[6.56,3.14],"handled":false},
+		{"name":"person2","location":[6.72,1.98],"handled":false},
+		{"name":"person3","location":[8.0,3.39],"handled":false},
+		{"name":"person4","location":[10.97,9.03],"handled":false},
+		{"name":"person5","location":[14.76,10.19],"handled":false},
+		{"name":"person6","location":[16.73,7.28],"handled":false},
+		{"name":"person7","location":[16.92,5.17],"handled":false},
+		{"name":"person8","location":[10.3,19.2],"handled":false},
+		{"name":"person9","location":[9.4,20.17],"handled":false},
+		{"name":"person10","location":[15.70,21.00],"handled":false},
+		{"name":"person11","location":[39.19,29.76],"handled":false},
+		{"name":"person12","location":[40.65,29.58],"handled":false},
+		{"name":"person13","location":[41.26,30.62],"handled":false},
+		{"name":"person14","location":[39.37,28.09],"handled":false},
+		{"name":"person15","location":[40.82,26.86],"handled":false},
+		{"name":"person16","location":[40.78,26.38],"handled":false},
+		{"name":"person17","location":[40.26,25.91],"handled":false},
+		{"name":"person18","location":[47.99,16.51],"handled":false},
+		{"name":"person19","location":[48.88,19.78],"handled":false},
+		{"name":"person20","location":[44.91,21.36],"handled":false}
 	],
 	"waypoints": [
-		{"name":"depot1","x":4,"y":11},
-		{"name":"depot2","x":34,"y":48}
+		{"name":"depot1","x":2.2,"y":12.6},
+		{"name":"depot2","x":50.3,"y":42.2}
 	]
 }
 
