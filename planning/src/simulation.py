@@ -141,10 +141,10 @@ class Simulation(World):
 
         offset = 1
         for a in self.current_actions:
-            #plt.text(self.xlim[0]+0.5, self.ylim[1]-1.5*offset, a.format(), 
-                    #fontsize=16)
-            plt.text(self.xlim[0]+0.1, self.ylim[0]+0.5*offset, a.format(), 
+            plt.text(self.xlim[0]+0.5, self.ylim[1]-1.5*offset, a.format(), 
                     fontsize=16)
+            #plt.text(self.xlim[0]+0.1, self.ylim[0]+0.5*offset, a.format(), 
+                    #fontsize=16)
             offset += 1
 
         turtlebots_xs = []
@@ -262,13 +262,15 @@ if __name__ == "__main__":
     plt.ion()
     dpi = 96
     dt = 0.04 # 25fps
-    frame_skip = 25 # down-sample to 1fps, ie. 25x
+    frame_skip = 5 # down-sample to 1fps, ie. 25x
     fig = plt.figure(figsize=(1920/dpi,1080/dpi), dpi=dpi, frameon=False)
     fig.set_size_inches(1920/dpi,1080/dpi)
     ax = fig.gca()
 
     skipped = 0
     while len(sim.current_actions) > 0:
+        sim.tick(dt)
+        """
         ax.cla()
         ax.set_xlim(xlim)
         ax.set_ylim(ylim)
@@ -277,22 +279,28 @@ if __name__ == "__main__":
         if frame_skip <= 0 or skipped == frame_skip:
             sim.draw(map, fig, ax)
             skipped = 0
+            t = round(sim.time,2)
+            ststr = str(int(t)).zfill(4)
+            msstr = '%.2f' % (t-int(t))
+            tstr = ststr + msstr[1:len(msstr)]
+            plt.savefig('video/simulation_'+tstr+'.png',  bbox_inches='tight', dpi=dpi), 
         skipped += 1
-        t = round(sim.time,2)
-        ststr = str(int(t)).zfill(4)
-        msstr = '%.2f' % (t-int(t))
-        tstr = ststr + msstr[1:len(msstr)]
-        #plt.savefig('video/simulation_'+tstr+'.eps', format='eps', bbox_inches='tight', dpi=dpi), 
-        plt.savefig('video/simulation_'+tstr+'.png',  bbox_inches='tight', dpi=dpi), 
+        """
 
     for i in range(0,int(1/dt)):
+        ax.cla()
+        ax.set_xlim(xlim)
+        ax.set_ylim(ylim)
+        map.plot(show=False,nodes=False)        
         sim.tick(dt)
+        sim.draw(map, fig, ax)
         t = round(sim.time,2)
         ststr = str(int(t)).zfill(4)
         msstr = '%.2f' % (t-int(t))
         tstr = ststr + msstr[1:len(msstr)]
-        #plt.savefig('video/simulation_'+tstr+'.eps', format='eps', bbox_inches='tight', dpi=dpi), 
         plt.savefig('video/simulation_'+tstr+'.png', bbox_inches='tight', dpi=dpi), 
 
     sim.draw(map, fig, ax)
+    print("-----------------------")
+    print("simulation completed")
     time.sleep(2**31-1)

@@ -268,6 +268,10 @@ class Coordinator(object):
             raise Exception("Failed action: " + action.format())
 
         action.complete_action()
+        try:
+            world.to_json('_' + str(action.index) + 'world.file.json')
+        except:
+            print("Failed to write json file")
         for succ_action in action.succ:
             all_done = True
             for pre_action in succ_action.pre:

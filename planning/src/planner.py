@@ -214,10 +214,13 @@ if __name__ == "__main__":
 
     actions = parse_plan(planner_file, world)
     land = Land(['drone1'], 1, world)
+
     land.index = len(actions)+1
     actions.append(land)
     takeoff = TakeOff(['drone1'], 1, world)
     takeoff.index = -1
     actions.insert(0, takeoff)
+
     graph = construct_graph(actions, world)
+
     coordinator.start(graph, actions)

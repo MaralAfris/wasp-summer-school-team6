@@ -60,6 +60,8 @@ class World(object):
             names.add(name)
 
         def get_location(data, source):
+            if data is None:
+                return None
             if isinstance(data, basestring):
                 return waypoint_dict[data]
             else:
@@ -123,7 +125,15 @@ class World(object):
         import json
         data = {}
 
-        data['agents'] = self._list_as_dict(self.agents)
+        data['agents'] = []
+        for agent in self.agents:
+            d = {}
+            d['name'] = agent.name
+            d['agent_type'] = agent.agent_type
+            d['location'] = [agent.location.point[0], agent.location.point[1]]
+            d['carrying'] = agent.carrying
+            data['agents'].append(d)
+
         data['waypoints'] = self._list_as_dict(filter(lambda wp: wp.point_type == PointType.initial, self.waypoints))
         data['boxes'] = self._list_as_dict(self.boxes)
         data['persons'] = self._list_as_dict(self.persons)
