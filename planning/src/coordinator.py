@@ -145,7 +145,7 @@ def init_plan():
 """count = 0"""
 #Init node
 def start(graph, actions):
-    """global drone_publisher"""
+    global drone_publisher
     #global pub_turtle, pub_drone
     #Initialize curnt node with some name
 
@@ -202,16 +202,17 @@ def start(graph, actions):
     
     x1 = 1.0
     x2 = 0.0
-    y = 0.0
+    y1 = 0.0
+    y2 = -1.0
     count = count + 1
     if count == 1:
-        moveDrone(x1,y,0,11,drone_publisher)
+        moveDrone(x1,y2,0,11,drone_publisher)
     if count == 2:
-        moveDrone(x1,y,1,12,drone_publisher)
+        moveDrone(x1,y2,1,12,drone_publisher)
     if count == 3:
-        moveDrone(x2,y,0,13,drone_publisher)
+        moveDrone(x2,y1,0,13,drone_publisher)
     if count == 4:
-        moveDrone(x2,y,4,14,drone_publisher)"""
+        moveDrone(x2,y1,4,14,drone_publisher)"""
 
 # A method that calls the publishing API and moves bot to location x,y,z
 # x,y are coordinates, z is suppose to be the type of the goal

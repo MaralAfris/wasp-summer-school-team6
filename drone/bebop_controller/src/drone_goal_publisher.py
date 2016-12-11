@@ -54,10 +54,16 @@ def drone_action(data):
     handover = 3
     land = 4
     takeoff = 5
+
+    drone_start_x = -2.15
+    drone_start_y = -2.00
     
     # Extract the goal of the action
-    x_coord = data.poses[0].position.x
-    y_coord = data.poses[0].position.y
+    x_coord = data.poses[0].position.x - drone_start_x
+    y_coord = data.poses[0].position.y - drone_start_y
+    # Extract the goal of the action
+    ###x_coord = data.poses[0].position.x
+    ###y_coord = data.poses[0].position.y
     action_type = data.poses[0].position.z
     actionId = data.poses[0].orientation.z
 

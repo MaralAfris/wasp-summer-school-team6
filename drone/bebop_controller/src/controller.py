@@ -148,8 +148,10 @@ class Controller(object):
     def set_goal(self, goal):
         # check if it for some reason is not given in 'odom'-frame
         # if not goal.header.frame_id == self._my_point.header.frame_id:
-        rospy.loginfo('Header we should have: %s' % self._my_pose.header.frame_id)
-        rospy.loginfo('Header we actually have: %s' % goal.header.frame_id)
+        print "Header we should have:"
+        print self._my_pose.header.frame_id
+        print "Header we actually have:"
+        print goal.header.frame_id
         if not goal.header.frame_id == self._my_pose.header.frame_id:
         # convert is to odom:
             try:

@@ -12,11 +12,11 @@ class PID(object):
         p.Beta = 1.0
         p.H = 0.05
         p.integratorOn = False
-        p.K = 0.20 # start 0.1
+        p.K = 0.25 # start 0.1 # used to be 0.20
         p.N = 10
-        p.Td = 0.1 # start 0.05
-        p.Ti = 10
-        p.Tr = 10
+        p.Td = 0.0 # start 0.1
+        p.Ti = 30 # used to be 10
+        p.Tr = 30 # used to be 10
         self.p = deepcopy(p)
 
         self.I = 0.0 

@@ -223,7 +223,9 @@ class HandOver(Action):
         self.agent1.carrying = None
         self.completed = True
 
-    def execute(self, publisher,drone_publisher):
+    def execute(self, turtlebot_publisher,drone_publisher):
+        x = 0.0
+        y = 0.0
         moveTurtleBot(x, y, 3, self.index, turtlebot_publisher)
         moveDrone(x, y, 3, self.index, drone_publisher)
 
